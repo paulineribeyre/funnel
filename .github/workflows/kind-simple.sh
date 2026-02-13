@@ -40,22 +40,22 @@ helm upgrade --install gen3 gen3/ -f ../../.github/values.yaml
 
 
 
-echo "📦 Installing Mountpoint for Amazon S3 CSI Driver (using aws-secret)"
+# echo "📦 Installing Mountpoint for Amazon S3 CSI Driver (using aws-secret)"
 
-helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
-helm repo update
+# helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
+# helm repo update
 
-helm upgrade --install aws-mountpoint-s3-csi-driver \
-  --namespace kube-system \
-  --create-namespace \
-  --set awsAccessSecret.name=aws-secret \
-  aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
+# helm upgrade --install aws-mountpoint-s3-csi-driver \
+#   --namespace kube-system \
+#   --create-namespace \
+#   --set awsAccessSecret.name=aws-secret \
+#   aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
 
-echo "⏳ Waiting for CSI driver pods..."
-kubectl rollout status deployment/s3-csi-controller -n kube-system --timeout=180s
-kubectl wait pods -n kube-system \
-  -l app.kubernetes.io/name=aws-mountpoint-s3-csi-driver \
-  --for=condition=Ready --timeout=180s
+# echo "⏳ Waiting for CSI driver pods..."
+# kubectl rollout status deployment/s3-csi-controller -n kube-system --timeout=180s
+# kubectl wait pods -n kube-system \
+#   -l app.kubernetes.io/name=aws-mountpoint-s3-csi-driver \
+#   --for=condition=Ready --timeout=180s
 
 
-  
+
