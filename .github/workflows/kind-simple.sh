@@ -42,6 +42,7 @@ helm repo add gen3 https://helm.gen3.org
 #   --for=condition=Ready --timeout=180s
 
 git clone https://github.com/uc-cdis/gen3-helm.git
+cd gen3-helm/helm/
 git checkout remove-funnel-mongodb
-cd gen3-helm/helm/gen3 && helm dependency update && cd ..
+cd gen3 && helm dependency update && cd ..
 helm upgrade --install gen3 gen3/ -f .github/values.yaml
