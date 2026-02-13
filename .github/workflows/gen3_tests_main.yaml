@@ -443,6 +443,14 @@ jobs:
                 echo "PR_ERROR_MSG=Failed to upload allure report to s3 bucket" >> $GITHUB_ENV
               fi
 
+          - name: Print logs
+            id: print_logs
+            if: ${{ env.SKIP_TESTS != 'true' }}
+            continue-on-error: true  # if this fails, we still need to run clean-up steps
+            run: |
+              echo Logs:
+              cat logs/gh_action_logs.txt
+
           - name: Upload logs to S3
             id: upload_gh_action_logs
             if: ${{ env.SKIP_TESTS != 'true' && (steps.prep_ci_env.outcome == 'success' || steps.prep_ci_env.outcome == 'failure') }}
