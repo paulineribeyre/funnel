@@ -73,10 +73,10 @@ jobs:
     integration_tests:
         runs-on: ubuntu-latest
 
-        # defaults:
-        #   run:
-        #     # the test directory in gen3-code-vigil
-        #     working-directory: ${{ inputs.WORKING_DIR }}
+        defaults:
+          run:
+            # the test directory in gen3-code-vigil
+            working-directory: ${{ inputs.WORKING_DIR }}
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -231,6 +231,7 @@ jobs:
           #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           #     aws-region: ${{ env.AWS_REGION }}
           - name: Start kind cluster
+            working-directory: ${{ github.workspace }}
             run: bash .github/workflows/kind-simple.sh
 
           # # Setup GCP
