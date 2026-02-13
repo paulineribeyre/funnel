@@ -84,9 +84,9 @@ jobs:
           REPO_FN: ${{ github.event.repository.full_name }}
           BRANCH: ${{ github.event.pull_request.head.ref }}
 
-          # TEMP: use branch name instead of PR number to test in 'push' events
+          # TEMP: hardcode instead of PR number to test in 'push' events
           # PR_NUM: ${{ github.event.pull_request.number }}
-          PR_NUM: ${{ github.ref_name | tr / _ }}
+          PR_NUM: 'funnel'
 
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUM: ${{ github.run_number }}
