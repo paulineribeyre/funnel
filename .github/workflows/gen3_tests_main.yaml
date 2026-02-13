@@ -120,14 +120,14 @@ jobs:
               echo "GITHUB_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
 
           # External PRs will not have access to secrets, so tests cannot run
-          - name: Skip integration tests for external PRs
-            if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
-            working-directory: ${{ github.workspace }}
-            run:  |
-              echo "Current repo: ${{ github.event.repository.full_name }}"
-              echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
-              echo "Skipping integration tests for external PRs"
-              echo "SKIP_TESTS=true" >> $GITHUB_ENV
+          # - name: Skip integration tests for external PRs
+          #   if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
+          #   working-directory: ${{ github.workspace }}
+          #   run:  |
+          #     echo "Current repo: ${{ github.event.repository.full_name }}"
+          #     echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          #     echo "Skipping integration tests for external PRs"
+          #     echo "SKIP_TESTS=true" >> $GITHUB_ENV
 
           # Skip integration tests when the following PR labels are present:
           # not-ready-for-ci / decommission-environment
@@ -218,7 +218,7 @@ jobs:
               version: latest
 
           - name: Install kind
-            if: ${{ env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
             run: |
               curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
               chmod +x ./kind
@@ -236,7 +236,7 @@ jobs:
           #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           #     aws-region: ${{ env.AWS_REGION }}
           - name: Start kind cluster
-            if: ${{ env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
             working-directory: ${{ github.workspace }}
             run: bash .github/workflows/kind-simple.sh
 
