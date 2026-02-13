@@ -179,9 +179,11 @@ jobs:
               path: gen3-gitops-ci
 
           - name: Get commit time
-            if: ${{ env.SKIP_TESTS != 'true' && github.event_name == 'pull_request' }}
+            if: ${{ env.SKIP_TESTS != 'true' }}
             run: |
               commit_time=$(gh api repos/$REPO_FN/commits/$COMMIT_SHA | jq -r '.commit.committer.date')
+              # TEMP hardcode to test in 'push' events
+              commit_time="2026-02-13T00:00:00Z"
               echo "COMMIT_TIME=$commit_time" >> $GITHUB_ENV
 
           - name: Set up Python
