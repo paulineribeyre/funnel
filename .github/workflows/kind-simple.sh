@@ -41,4 +41,7 @@ helm repo add gen3 https://helm.gen3.org
 #   -l app.kubernetes.io/name=aws-mountpoint-s3-csi-driver \
 #   --for=condition=Ready --timeout=180s
 
-helm upgrade --install gen3 gen3/gen3 -f .github/values.yaml
+git clone https://github.com/uc-cdis/gen3-helm.git
+git checkout remove-funnel-mongodb
+cd gen3-helm/helm/gen3 && helm dependency update && cd ..
+helm upgrade --install gen3 gen3/ -f .github/values.yaml
