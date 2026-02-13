@@ -37,7 +37,6 @@ global:
   #   master:
   #     host: "devplanetv2-aurora-cluster-new.cluster-cwvizkxhzjt8.us-east-1.rds.amazonaws.com"
   revproxyArn: arn:aws:acm:us-east-1:707767160287:certificate/520ede2f-fc82-4bb9-af96-4b4af7deabbd
-  clusterName: ''  # disable EKS cluster name logic in gen3-workflow
   # topologySpread:
   #   # -- (bool) Whether to enable topology spread constraints for all subcharts that support it.
   #   enabled: true
@@ -49,8 +48,8 @@ global:
 arborist:
   enabled: true
   image:
-    repository: 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/arborist
-    tag: "2025.07"
+    repository: quay.io/cdis/arborist
+    tag: "master"
   # externalSecrets:
   #   dbcreds: qa-midrc-arborist-creds
 
@@ -69,9 +68,10 @@ fence:
 
 gen3-workflow:
   enabled: true
-  # image:
-  #   repository: 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/gen3-workflow
-  #   tag: master
+  image:
+    repository: quay.io/cdis/gen3-workflow
+    tag: master
+    # tag: chore_remove_eks_cluster_dependency
   # externalSecrets:
   #   gen3workflowG3auto: "qa-midrc-helm-gen3workflow-g3auto"
   gen3WorkflowConfig:
@@ -94,8 +94,8 @@ funnel:
 revproxy:
   enabled: true
   image:
-    repository: 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/nginx
-    tag: "2025.07"
+    repository: quay.io/cdis/nginx
+    tag: "master"
   ingress:
     aws:
       group: devplanetv2
@@ -109,7 +109,7 @@ etl:
 hatchery:
   enabled: false
 indexd:
-  enabled: false
+  enabled: true
 manifestservice:
   enabled: false
 metadata:

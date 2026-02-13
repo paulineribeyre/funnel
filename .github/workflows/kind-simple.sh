@@ -27,22 +27,35 @@ EOF
 fi
 kubectl wait --for=condition=Ready nodes --all --timeout=180s
 
-
-
+echo "📦 Installing Gen3-helm Chart"
 
 helm repo add gen3 https://helm.gen3.org
-# helm upgrade --install aws-mountpoint-s3-csi-driver \
-#   --namespace kube-system \
-#   --create-namespace \
-#   --set awsAccessSecret.name=aws-secret \
-#   aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
-# kubectl rollout status deployment/s3-csi-controller -n kube-system --timeout=180s
-# kubectl wait pods -n kube-system \
-#   -l app.kubernetes.io/name=aws-mountpoint-s3-csi-driver \
-#   --for=condition=Ready --timeout=180s
 
+# This is temporary until we fic the karpenter-template configmap change is merged to main gen3-helm
 git clone https://github.com/uc-cdis/gen3-helm.git
 cd gen3-helm/helm/
 git checkout remove-funnel-mongodb
 cd gen3 && helm dependency update && cd ..
 helm upgrade --install gen3 gen3/ -f ../../.github/values.yaml
+
+
+
+echo "📦 Installing Mountpoint for Amazon S3 CSI Driver (using aws-secret)"
+
+helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
+helm repo update
+
+helm upgrade --install aws-mountpoint-s3-csi-driver \
+  --namespace kube-system \
+  --create-namespace \
+  --set awsAccessSecret.name=aws-secret \
+  aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
+
+echo "⏳ Waiting for CSI driver pods..."
+kubectl rollout status deployment/s3-csi-controller -n kube-system --timeout=180s
+kubectl wait pods -n kube-system \
+  -l app.kubernetes.io/name=aws-mountpoint-s3-csi-driver \
+  --for=condition=Ready --timeout=180s
+
+
+  
