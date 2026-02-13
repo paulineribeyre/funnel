@@ -30,7 +30,6 @@ kubectl wait --for=condition=Ready nodes --all --timeout=180s
 
 
 
-
 helm repo add gen3 https://helm.gen3.org
 # helm upgrade --install aws-mountpoint-s3-csi-driver \
 #   --namespace kube-system \
