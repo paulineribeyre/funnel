@@ -45,4 +45,4 @@ git clone https://github.com/uc-cdis/gen3-helm.git
 cd gen3-helm/helm/
 git checkout remove-funnel-mongodb
 cd gen3 && helm dependency update && cd ..
-helm upgrade --install gen3 gen3/ -f .github/values.yaml
+helm upgrade --install gen3 gen3/ -f ../../.github/values.yaml
