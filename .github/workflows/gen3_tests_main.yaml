@@ -83,11 +83,7 @@ jobs:
           REPO: ${{ github.event.repository.name }}
           REPO_FN: ${{ github.event.repository.full_name }}
           BRANCH: ${{ github.event.pull_request.head.ref }}
-
-          # TEMP: hardcode instead of PR number to test in 'push' events
-          # PR_NUM: ${{ github.event.pull_request.number }}
-          PR_NUM: 'funnel'
-
+          PR_NUM: ${{ github.event.pull_request.number }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUM: ${{ github.run_number }}
           RUN_ID: ${{ github.run_id }}
@@ -108,9 +104,9 @@ jobs:
           SKIP_TESTS: 'false'
 
           # S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          AWS_REGION: us-east-1
-          CLUSTER_NAME: mountpoint-s3-csi
-          K8S_VERSION: v1.35.0
+          # AWS_REGION: us-east-1
+          # CLUSTER_NAME: mountpoint-s3-csi
+          # K8S_VERSION: v1.35.0
 
         steps:
           - name: Set Start Time
@@ -179,11 +175,9 @@ jobs:
               path: gen3-gitops-ci
 
           - name: Get commit time
-            if: ${{ env.SKIP_TESTS != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && github.event_name == 'pull_request' }}
             run: |
               commit_time=$(gh api repos/$REPO_FN/commits/$COMMIT_SHA | jq -r '.commit.committer.date')
-              # TEMP hardcode to test in 'push' events
-              commit_time="2026-02-13T00:00:00Z"
               echo "COMMIT_TIME=$commit_time" >> $GITHUB_ENV
 
           - name: Set up Python

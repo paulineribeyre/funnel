@@ -1,8 +1,6 @@
 name: Gen3 Integration Tests
 
-on: 
-  - push
-  - workflow_dispatch
+on: pull_request
 
 permissions:
   id-token: write
