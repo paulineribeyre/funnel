@@ -15,7 +15,7 @@ jobs:
     name: Integration tests
     uses: paulineribeyre/funnel/.github/workflows/gen3_tests_main.yaml@ci
     with:
-      SERVICE_TO_TEST: funnel
+      SERVICE_TO_TEST: gen3_workflow
       # AWS_ROLE_TO_ASSUME: <TODO: add role ARN here>
     # secrets:
     #   CI_TEST_ORCID_USERID: ${{ secrets.CI_TEST_ORCID_USERID }}
