@@ -14,6 +14,8 @@ jobs:
     uses: paulineribeyre/funnel/.github/workflows/gen3_tests_main.yaml@ci
     with:
       SERVICE_TO_TEST: gen3_workflow
+      RUN_IN_LOCAL_KIND_CLUSTER: "true"
+      TEST_REPO_BRANCH: support-kind
       # AWS_ROLE_TO_ASSUME: <TODO: add role ARN here>
     # secrets:
     #   CI_TEST_ORCID_USERID: ${{ secrets.CI_TEST_ORCID_USERID }}
