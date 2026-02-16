@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # ---------------- Config ----------------
-CLUSTER_NAME=${CLUSTER_NAME:-mountpoint-s3-csi}
+CLUSTER_NAME=${CLUSTER_NAME:-kind-cluster}
 K8S_VERSION=${K8S_VERSION:-v1.35.0}
 NODE_IMAGE=${NODE_IMAGE:-kindest/node:${K8S_VERSION}}
 # AWS_PROFILE=${AWS_PROFILE:-jawiz}
@@ -27,17 +27,15 @@ EOF
 fi
 kubectl wait --for=condition=Ready nodes --all --timeout=180s
 
-echo "📦 Installing Gen3-helm Chart"
 
-helm repo add gen3 https://helm.gen3.org
-
-# This is temporary until we fic the karpenter-template configmap change is merged to main gen3-helm
-git clone https://github.com/uc-cdis/gen3-helm.git
-cd gen3-helm/helm/
-git checkout remove-funnel-mongodb
-cd gen3 && helm dependency update && cd ..
-helm upgrade --install gen3 gen3/ -f ../../.github/values.yaml
-
+# echo "📦 Installing Gen3-helm Chart"
+# helm repo add gen3 https://helm.gen3.org
+# # This is temporary until the karpenter-template configmap change is merged to main gen3-helm
+# git clone https://github.com/uc-cdis/gen3-helm.git
+# cd gen3-helm/helm/
+# git checkout remove-funnel-mongodb
+# cd gen3 && helm dependency update && cd ..
+# helm upgrade --install gen3 gen3/ -f ../../.github/values.yaml
 
 
 # echo "📦 Installing Mountpoint for Amazon S3 CSI Driver (using aws-secret)"
