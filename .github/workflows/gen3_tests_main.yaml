@@ -179,7 +179,7 @@ jobs:
               path: gen3-gitops-ci
 
           - name: Override config
-            if: ${{ env.SKIP_TESTS != 'true' && env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
             working-directory: ${{ github.workspace }}
             # - Disable unnecessary services. Master list:
             # https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
@@ -292,7 +292,7 @@ jobs:
               version: latest
 
           - name: Install kind
-            if: ${{ env.SKIP_TESTS != 'true' && env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
             run: |
               curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
               chmod +x ./kind
@@ -310,7 +310,7 @@ jobs:
           #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           #     aws-region: ${{ env.AWS_REGION }}
           - name: Start kind cluster
-            if: ${{ env.SKIP_TESTS != 'true' && env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
             working-directory: ${{ github.workspace }}
             run: bash .github/workflows/kind-simple.sh
 
