@@ -178,6 +178,80 @@ jobs:
               ref: 'master'
               path: gen3-gitops-ci
 
+          - name: Override config
+            if: ${{ env.SKIP_TESTS != 'true' && env.RUN_IN_LOCAL_KIND_CLUSTER != 'true' }}
+            working-directory: ${{ github.workspace }}
+            # - Disable unnecessary services. Master list:
+            # https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
+            # - Reset funnel DB config so it can use a local postgres pod:
+            # https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
+            # "zzz-" file name so it's the last file to be processed and these values override
+            # previous ones.
+            run: |
+              cat <<EOF > gen3-gitops-ci/ci/default/values/zzz-disabled-for-funnel.yaml
+              funnel:
+                postgres:
+                  dbCreate: false
+                funnel:
+                  #image:
+                  #  tag: $BRANCH # TODO test
+                  postgresql:  # default bitnami postgres pod
+                    enabled: true
+                  Postgres:
+                    Host: funnel-postgresql.default.svc.cluster.local
+                    Database: funnel
+                    User: funnel
+                    Password: example
+              access-backend:
+                enabled: false
+              ambassador:
+                enabled: false
+              argo-wrapper::
+                enabled: false
+              audit:
+                enabled: false
+              cedar:
+                enabled: false
+              cohort-middleware:
+                enabled: false
+              dicom-server:
+                enabled: false
+              etl:
+                enabled: false
+              frontend-framework:
+                enabled: false
+              gen3-user-data-library:
+                enabled: false
+              guppy:
+                enabled: false
+              hatchery:
+                enabled: false
+              indexd:
+                enabled: true
+              manifestservice:
+                enabled: false
+              metadata:
+                enabled: false
+              ohif-viewer:
+                enabled: false
+              orthanc:
+                enabled: false
+              peregrine:
+                enabled: false
+              portal:
+                enabled: false
+              requestor:
+                enabled: false
+              sheepdog:
+                enabled: false
+              sower:
+                enabled: false
+              ssjdispatcher:
+                enabled: false
+              wts:
+                enabled: false
+              EOF
+
           - name: Get commit time
             if: ${{ env.SKIP_TESTS != 'true' && github.event_name == 'pull_request' }}
             run: |
