@@ -372,20 +372,27 @@ jobs:
             # "zzz-" file name so it's the last file to be processed and these values override
             # previous ones.
             run: |
-              cat <<EOF > gen3-gitops-ci/ci/default/values/zzz-disabled-for-funnel.yaml
+              cd gen3-gitops-ci/ci/default/values
+              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml revproxy.yaml values.yaml ..
+              rm ./*
+              cd ..
+              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml revproxy.yaml values.yaml values/
+              cat <<EOF > values/funnel-ci-values.yaml
               funnel:
                 postgres:
                   dbCreate: false
                 funnel:
                   #image:
                   #  tag: $BRANCH # TODO test
+                  Kubernetes:
+                    JobsNamespace: workflow-pods-default
                   postgresql:  # default bitnami postgres pod
-                    enabled: true
-                  Postgres:
-                    Host: funnel-postgresql.default.svc.cluster.local
-                    Database: funnel
-                    User: funnel
-                    Password: example
+                    enabled: false
+                  # Postgres:
+                  #   Host: funnel-postgresql.default.svc.cluster.local
+                  #   Database: funnel
+                  #   User: funnel
+                  #   Password: example
               access-backend:
                 enabled: false
               ambassador:
