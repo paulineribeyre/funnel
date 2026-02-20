@@ -434,7 +434,6 @@ jobs:
                 enabled: false
               wts:
                 enabled: false
-              postgresql: null
               EOF
 
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
