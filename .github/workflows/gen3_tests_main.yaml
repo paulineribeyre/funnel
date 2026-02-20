@@ -178,82 +178,6 @@ jobs:
               ref: 'master'
               path: gen3-gitops-ci
 
-          - name: Override config
-            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
-            working-directory: ${{ github.workspace }}
-            # - Disable unnecessary services. Master list:
-            # https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
-            # (this could also be done automatically by using `--set` for all `<service>.enabled` in
-            # the `helm install` command)
-            # - Reset funnel DB config so it can use a local postgres pod:
-            # https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
-            # "zzz-" file name so it's the last file to be processed and these values override
-            # previous ones.
-            run: |
-              cat <<EOF > gen3-gitops-ci/ci/default/values/zzz-disabled-for-funnel.yaml
-              funnel:
-                postgres:
-                  dbCreate: false
-                funnel:
-                  #image:
-                  #  tag: $BRANCH # TODO test
-                  postgresql:  # default bitnami postgres pod
-                    enabled: true
-                  Postgres:
-                    Host: funnel-postgresql.default.svc.cluster.local
-                    Database: funnel
-                    User: funnel
-                    Password: example
-              access-backend:
-                enabled: false
-              ambassador:
-                enabled: false
-              argo-wrapper::
-                enabled: false
-              audit:
-                enabled: false
-              cedar:
-                enabled: false
-              cohort-middleware:
-                enabled: false
-              dicom-server:
-                enabled: false
-              etl:
-                enabled: false
-              frontend-framework:
-                enabled: false
-              gen3-user-data-library:
-                enabled: false
-              guppy:
-                enabled: false
-              hatchery:
-                enabled: false
-              indexd:
-                enabled: true
-              manifestservice:
-                enabled: false
-              metadata:
-                enabled: false
-              ohif-viewer:
-                enabled: false
-              orthanc:
-                enabled: false
-              peregrine:
-                enabled: false
-              portal:
-                enabled: false
-              requestor:
-                enabled: false
-              sheepdog:
-                enabled: false
-              sower:
-                enabled: false
-              ssjdispatcher:
-                enabled: false
-              wts:
-                enabled: false
-              EOF
-
           - name: Get commit time
             if: ${{ env.SKIP_TESTS != 'true' && github.event_name == 'pull_request' }}
             run: |
@@ -435,6 +359,83 @@ jobs:
               PR_FILES=$(gh api repos/$REPO_FN/pulls/$PR_NUM/files --jq '.[].filename')
               UPDATED_FOLDERS=$(echo "$PR_FILES" | grep -v "^.github/" | awk -F'/' '{if ($1 != ".github" && NF > 1) print $1"/"$2}' | sort -u | tr '\n' ',' | sed 's/,$//')
               echo "UPDATED_FOLDERS=$UPDATED_FOLDERS" >> $GITHUB_ENV
+
+          - name: Override config
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
+            working-directory: ${{ github.workspace }}
+            # - Disable unnecessary services. Master list:
+            # https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
+            # (this could also be done automatically by using `--set` for all `<service>.enabled` in
+            # the `helm install` command)
+            # - Reset funnel DB config so it can use a local postgres pod:
+            # https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
+            # "zzz-" file name so it's the last file to be processed and these values override
+            # previous ones.
+            run: |
+              cat <<EOF > gen3-gitops-ci/ci/default/values/zzz-disabled-for-funnel.yaml
+              funnel:
+                postgres:
+                  dbCreate: false
+                funnel:
+                  #image:
+                  #  tag: $BRANCH # TODO test
+                  postgresql:  # default bitnami postgres pod
+                    enabled: true
+                  Postgres:
+                    Host: funnel-postgresql.default.svc.cluster.local
+                    Database: funnel
+                    User: funnel
+                    Password: example
+              access-backend:
+                enabled: false
+              ambassador:
+                enabled: false
+              argo-wrapper::
+                enabled: false
+              audit:
+                enabled: false
+              cedar:
+                enabled: false
+              cohort-middleware:
+                enabled: false
+              dicom-server:
+                enabled: false
+              etl:
+                enabled: false
+              frontend-framework:
+                enabled: false
+              gen3-user-data-library:
+                enabled: false
+              guppy:
+                enabled: false
+              hatchery:
+                enabled: false
+              indexd:
+                enabled: true
+              manifestservice:
+                enabled: false
+              metadata:
+                enabled: false
+              ohif-viewer:
+                enabled: false
+              orthanc:
+                enabled: false
+              peregrine:
+                enabled: false
+              portal:
+                enabled: false
+              requestor:
+                enabled: false
+              sheepdog:
+                enabled: false
+              sower:
+                enabled: false
+              ssjdispatcher:
+                enabled: false
+              wts:
+                enabled: false
+              postgresql: null
+              EOF
 
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
           # Generate API keys for test users for the environment
