@@ -183,6 +183,8 @@ jobs:
             working-directory: ${{ github.workspace }}
             # - Disable unnecessary services. Master list:
             # https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
+            # (this could also be done automatically by using `--set` for all `<service>.enabled` in
+            # the `helm install` command)
             # - Reset funnel DB config so it can use a local postgres pod:
             # https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
             # "zzz-" file name so it's the last file to be processed and these values override
