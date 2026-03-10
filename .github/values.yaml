@@ -109,7 +109,7 @@ etl:
 hatchery:
   enabled: false
 indexd:
-  enabled: true
+  enabled: false
 manifestservice:
   enabled: false
 metadata:
