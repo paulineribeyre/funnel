@@ -364,20 +364,21 @@ jobs:
             if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
             working-directory: ${{ github.workspace }}
             # - Disable unnecessary services. Master list:
-            # https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
-            # (this could also be done automatically by using `--set` for all `<service>.enabled` in
-            # the `helm install` command)
+            #   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
+            #   (this could also be done automatically by using `--set` for all `<service>.enabled`
+            #   in the `helm install` command)
             # - Reset funnel DB config so it can use a local postgres pod:
-            # https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
-            # "zzz-" file name so it's the last file to be processed and these values override
-            # previous ones.
+            #   https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
+            # - update fence config to generate secrets instead of looking for pre-existing secrets
+            # - "zzz-" file name so it's the last file to be processed and these values override
+            #   previous ones.
             run: |
               cd gen3-gitops-ci/ci/default/values
               mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml revproxy.yaml values.yaml ..
               rm ./*
               cd ..
               mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml revproxy.yaml values.yaml values/
-              cat <<EOF > values/funnel-ci-values.yaml
+              cat <<EOF > values/zzz-funnel-ci-values.yaml
               funnel:
                 postgres:
                   dbCreate: false
@@ -393,6 +394,11 @@ jobs:
                   #   Database: funnel
                   #   User: funnel
                   #   Password: example
+              fence:
+                externalSecrets:
+                  createK8sFenceConfigSecret: true
+                  createK8sGoogleAppSecrets: true
+                  createK8sJwtKeysSecret: true
               access-backend:
                 enabled: false
               ambassador:
@@ -418,7 +424,7 @@ jobs:
               hatchery:
                 enabled: false
               indexd:
-                enabled: true
+                enabled: false
               manifestservice:
                 enabled: false
               metadata:
