@@ -374,10 +374,10 @@ jobs:
             #   previous ones.
             run: |
               cd gen3-gitops-ci/ci/default/values
-              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml revproxy.yaml values.yaml ..
+              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml ..
               rm ./*
               cd ..
-              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml revproxy.yaml values.yaml values/
+              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml values/
               cat <<EOF > values/zzz-funnel-ci-values.yaml
               funnel:
                 postgres:
@@ -399,6 +399,9 @@ jobs:
                   createK8sFenceConfigSecret: true
                   createK8sGoogleAppSecrets: true
                   createK8sJwtKeysSecret: true
+              indexd:
+                externalSecrets:
+                  createK8sServiceCredsSecret: true
               access-backend:
                 enabled: false
               ambassador:
@@ -422,8 +425,6 @@ jobs:
               guppy:
                 enabled: false
               hatchery:
-                enabled: false
-              indexd:
                 enabled: false
               manifestservice:
                 enabled: false
