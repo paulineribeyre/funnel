@@ -367,41 +367,39 @@ jobs:
             #   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
             #   (this could also be done automatically by using `--set` for all `<service>.enabled`
             #   in the `helm install` command)
-            # - Reset funnel DB config so it can use a local postgres pod:
-            #   https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
-            # - update fence config to generate secrets instead of looking for pre-existing secrets
             # - "zzz-" file name so it's the last file to be processed and these values override
             #   previous ones.
+            # - Reset funnel DB config so it can use a local postgres pod:
+            #   https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
+            # - update fence and indexd configs to generate secrets instead of looking for
+            # pre-existing secrets
             run: |
-              cd gen3-gitops-ci/ci/default/values
-              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml ..
-              rm ./*
-              cd ..
-              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml values/
-              cat <<EOF > values/zzz-funnel-ci-values.yaml
-              funnel:
-                postgres:
-                  dbCreate: false
-                funnel:
-                  #image:
-                  #  tag: $BRANCH # TODO test
-                  Kubernetes:
-                    JobsNamespace: workflow-pods-default
-                  postgresql:  # default bitnami postgres pod
-                    enabled: false
-                  # Postgres:
-                  #   Host: funnel-postgresql.default.svc.cluster.local
-                  #   Database: funnel
-                  #   User: funnel
-                  #   Password: example
-              fence:
-                externalSecrets:
-                  createK8sFenceConfigSecret: true
-                  createK8sGoogleAppSecrets: true
-                  createK8sJwtKeysSecret: true
-              indexd:
-                externalSecrets:
-                  createK8sServiceCredsSecret: true
+              cd gen3-gitops-ci/ci/default/values && mkdir ../to-keep
+              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml ../to-keep
+              rm ./* && mv ../to-keep/* .
+
+              yq eval -i '.fence.externalSecrets.createK8sFenceConfigSecret = "true"' fence.yaml
+              yq eval -i '.fence.externalSecrets.createK8sGoogleAppSecrets = "true"' fence.yaml
+              yq eval -i '.fence.externalSecrets.createK8sJwtKeysSecret = "true"' fence.yaml
+
+              yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd.yaml
+
+              yq eval -i '.funnel.postgres.dbCreate = "false"' funnel.yaml
+              yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
+              yq eval -i '.funnel.funnel.postgresql.enabled = "false"' funnel.yaml
+
+              # TODO add the configs below or remove this block
+              # funnel:
+              #   funnel:
+              #     image:
+              #      tag: $BRANCH # TODO test
+              #     Postgres:
+              #       Host: funnel-postgresql.default.svc.cluster.local
+              #       Database: funnel
+              #       User: funnel
+              #       Password: example
+
+              cat <<EOF > zzz-disable-services.yaml
               access-backend:
                 enabled: false
               ambassador:
