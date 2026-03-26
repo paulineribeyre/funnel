@@ -382,6 +382,33 @@ jobs:
               yq eval -i '.fence.externalSecrets.createK8sGoogleAppSecrets = "true"' fence.yaml
               yq eval -i '.fence.externalSecrets.createK8sJwtKeysSecret = "true"' fence.yaml
 
+              # The settings below are supposed to be in the `ci-fence-config-priv` secret, but we
+              # use dummy values that can be added to the public config
+              yq eval -i '.fence.FENCE_CONFIG_PUBLIC.AWS_CREDENTIALS.cdistest.aws_access_key_id = "abc"' fence.yaml
+              yq eval -i '.fence.FENCE_CONFIG_PUBLIC.AWS_CREDENTIALS.cdistest.aws_secret_access_key = "xyz"' fence.yaml
+              yq eval -i '.fence.FENCE_CONFIG_PUBLIC.AWS_CREDENTIALS.cdistest.aws_secret_access_key = "xyz"' fence.yaml
+              cat <<EOF > temp-fence-config.yaml
+              OPENID_CONNECT:
+                fence:
+                  api_base_url: ''
+                  client_id: 'abc'
+                  client_secret: 'xyz'
+
+                ras:
+                  client_id: 'abc'
+                  client_secret: 'xyz'
+                  redirect_url: '{{BASE_URL}}/login/ras/callback'
+                  discovery_url: 'https://stsstg.nih.gov/.well-known/openid-configuration'
+
+                google:
+                  client_id: 'abc'
+                  client_secret: 'xyz'
+                  redirect_url: '{{BASE_URL}}/login/google/login/'
+                  discovery_url: 'https://accounts.google.com/.well-known/openid-configuration'
+              EOF
+              yq eval-all -i 'select(fileIndex == 0) * select(fileIndex == 1)' fence.yaml temp-fence-config.yaml
+              rm temp-fence-config.yaml
+
               yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd.yaml
 
               yq eval -i '.funnel.postgres.dbCreate = false' funnel.yaml
