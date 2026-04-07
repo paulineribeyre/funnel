@@ -395,7 +395,8 @@ jobs:
               fence:
                 usersync:
                   usersync: false  # use the useryaml job instead of the usersync cronjob
-                FENCE_CONFIG_PUBLIC:
+                FENCE_CONFIG:  # use private config because it takes precedence over public config
+                  BASE_URL: 'http://localhost:8000/user'
                   OPENID_CONNECT:
                     fence:
                       api_base_url: ''
