@@ -112,35 +112,35 @@ jobs:
           # CLUSTER_NAME: mountpoint-s3-csi
           # K8S_VERSION: v1.35.0
 
-        services:
-          # image: quay.io/minio/minio
-          # image: quay.io/minio/minio:latest-cicd
-          # s3_mock:
-          #   image: minio/minio:latest
-          #   ports:
-          #     - "9000:9000"
-          #     - "9001:9001"
-          #   # Set command to start the server
-          #   command: server /data --console-address ":9001"
-          #   env:
-          #     MINIO_ROOT_USER: minioadmin
-          #     MINIO_ROOT_PASSWORD: minioadmin
-          # minio:
-          #   image: bitnami/minio:latest
-          #   env:
-          #     MINIO_ACCESS_KEY: minio
-          #     MINIO_SECRET_KEY: minio
-          #   ports:
-          #     - 9000:9000
-          #   options: --name minio-server
-          minio:
-            # image: cparta/minio-cicd:latest
-            image: quay.io/minio/minio:latest-cicd
-            ports:
-              - 9000:9000
-            env:
-              MINIO_ROOT_USER: minioadmin
-              MINIO_ROOT_PASSWORD: minioadmin
+        # services:
+        #   # image: quay.io/minio/minio
+        #   # image: quay.io/minio/minio:latest-cicd
+        #   # s3_mock:
+        #   #   image: minio/minio:latest
+        #   #   ports:
+        #   #     - "9000:9000"
+        #   #     - "9001:9001"
+        #   #   # Set command to start the server
+        #   #   command: server /data --console-address ":9001"
+        #   #   env:
+        #   #     MINIO_ROOT_USER: minioadmin
+        #   #     MINIO_ROOT_PASSWORD: minioadmin
+        #   # minio:
+        #   #   image: bitnami/minio:latest
+        #   #   env:
+        #   #     MINIO_ACCESS_KEY: minio
+        #   #     MINIO_SECRET_KEY: minio
+        #   #   ports:
+        #   #     - 9000:9000
+        #   #   options: --name minio-server
+        #   minio:
+        #     # image: cparta/minio-cicd:latest
+        #     image: quay.io/minio/minio:latest-cicd
+        #     ports:
+        #       - 9000:9000
+        #     env:
+        #       MINIO_ROOT_USER: minioadmin
+        #       MINIO_ROOT_PASSWORD: minioadmin
 
         steps:
           - name: Set Start Time
@@ -269,6 +269,41 @@ jobs:
             if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
             working-directory: ${{ github.workspace }}
             run: bash .github/workflows/kind-simple.sh
+
+          - name: Deploy MinIO in kind
+            run: |
+              kubectl apply -f - <<EOF
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                name: minio
+                labels:
+                  app: minio
+              spec:
+                containers:
+                - name: minio
+                  image: quay.io/minio/minio:latest-cicd
+                  args: ["server", "/data"]
+                  env:
+                  - name: MINIO_ROOT_USER
+                    value: minioadmin
+                  - name: MINIO_ROOT_PASSWORD
+                    value: minioadmin
+                  ports:
+                  - containerPort: 9000
+              ---
+              apiVersion: v1
+              kind: Service
+              metadata:
+                name: minio
+              spec:
+                selector:
+                  app: minio
+                ports:
+                - port: 9000
+                  targetPort: 9000
+              EOF
+              kubectl wait --for=condition=Ready pod/minio --timeout=60s
 
           # # Setup GCP
           # - name: 'Authenticate with GCP'
