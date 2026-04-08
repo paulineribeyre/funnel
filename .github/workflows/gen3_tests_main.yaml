@@ -112,6 +112,36 @@ jobs:
           # CLUSTER_NAME: mountpoint-s3-csi
           # K8S_VERSION: v1.35.0
 
+        services:
+          # image: quay.io/minio/minio
+          # image: quay.io/minio/minio:latest-cicd
+          # s3_mock:
+          #   image: minio/minio:latest
+          #   ports:
+          #     - "9000:9000"
+          #     - "9001:9001"
+          #   # Set command to start the server
+          #   command: server /data --console-address ":9001"
+          #   env:
+          #     MINIO_ROOT_USER: minioadmin
+          #     MINIO_ROOT_PASSWORD: minioadmin
+          # minio:
+          #   image: bitnami/minio:latest
+          #   env:
+          #     MINIO_ACCESS_KEY: minio
+          #     MINIO_SECRET_KEY: minio
+          #   ports:
+          #     - 9000:9000
+          #   options: --name minio-server
+          minio:
+            # image: cparta/minio-cicd:latest
+            image: quay.io/minio/minio:latest-cicd
+            ports:
+              - 9000:9000
+            env:
+              MINIO_ROOT_USER: minioadmin
+              MINIO_ROOT_PASSWORD: minioadmin
+
         steps:
           - name: Set Start Time
             if: ${{ env.SKIP_TESTS != 'true' }}
@@ -360,8 +390,8 @@ jobs:
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             run: |
               PR_FILES=$(gh api repos/$REPO_FN/pulls/$PR_NUM/files --jq '.[].filename')
-              UPDATED_FOLDERS=$(echo "$PR_FILES" | grep -v "^.github/" | awk -F'/' '{if ($1 != ".github" && NF > 1) print $1"/"$2}' | sort -u | tr '\n' ',' | sed 's/,$//')
-              echo "UPDATED_FOLDERS=$UPDATED_FOLDERS" >> $GITHUB_ENV
+              SOURCE_CONFIG=$(echo "$PR_FILES" | grep -v "^.github/" | awk -F'/' '{if ($1 != ".github" && NF > 1) print $1"/"$2}' | sort -u | tr '\n' ',' | sed 's/,$//')
+              echo "SOURCE_CONFIG=$SOURCE_CONFIG" >> $GITHUB_ENV
 
           - name: Override config
             if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
@@ -381,22 +411,20 @@ jobs:
               mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml ../to-keep
               rm ./* && mv ../to-keep/* .
 
-              yq eval -i '.fence.externalSecrets.createK8sFenceConfigSecret = "true"' fence.yaml
-              yq eval -i '.fence.externalSecrets.createK8sGoogleAppSecrets = "true"' fence.yaml
-              yq eval -i '.fence.externalSecrets.createK8sJwtKeysSecret = "true"' fence.yaml
+              # TODO add gen3-workflow s3 endpoint config once it's added to helm chart
+              yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3AccessKeyId = "minioadmin"' gen3-workflow.yaml
+              yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3SecretAccessKey = "minioadmin"' gen3-workflow.yaml
+              yq eval -i '.gen3-workflow.image.tag = "feat_s3-endpoint"' gen3-workflow.yaml
 
-              # The settings below are supposed to be in the `ci-fence-config-priv` secret, but we
-              # use dummy values that can be added to the public config
-              yq eval -i '.fence.FENCE_CONFIG_PUBLIC.AWS_CREDENTIALS.cdistest.aws_access_key_id = "abc"' fence.yaml
-              yq eval -i '.fence.FENCE_CONFIG_PUBLIC.AWS_CREDENTIALS.cdistest.aws_secret_access_key = "xyz"' fence.yaml
-              yq eval -i '.fence.FENCE_CONFIG_PUBLIC.AWS_CREDENTIALS.cdistest.aws_secret_access_key = "xyz"' fence.yaml
-
-              cat <<EOF > temp-fence-config.yaml
+              cat <<EOF > temp-fence.yaml
               fence:
+                externalSecrets:
+                  createK8sFenceConfigSecret: true
+                  createK8sGoogleAppSecrets: true
+                  createK8sJwtKeysSecret: true
                 usersync:
                   usersync: false  # use the useryaml job instead of the usersync cronjob
                 FENCE_CONFIG:  # use private config because it takes precedence over public config
-                  #BASE_URL: 'http://localhost:8000/user'
                   BASE_URL: 'http://fence-service.${{ env.NAMESPACE }}.svc.cluster.local'
                   OPENID_CONNECT:
                     fence:
@@ -413,6 +441,10 @@ jobs:
                       client_id: 'abc'
                       client_secret: 'xyz'
                       redirect_url: '{{BASE_URL}}/login/google/login/'
+                  AWS_CREDENTIALS:
+                    cdistest:
+                      aws_access_key_id: 'abc'
+                      aws_secret_access_key: 'xyz'
                 USER_YAML: |
                   authz:
                     policies:
@@ -428,7 +460,6 @@ jobs:
                         - gen3_workflow_admin
                         resource_paths:
                         - /services/workflow/gen3-workflow/storage
-
                     resources:
                       - name: 'services'
                         subresources:
@@ -457,12 +488,10 @@ jobs:
                           action:
                             service: gen3-workflow
                             method: '*'
-
                   clients:
                     funnel-plugin-client:
                       policies:
                       - gen3_workflow_storage_admin
-
                   users:
                     main@example.org:
                       admin: true
@@ -478,8 +507,8 @@ jobs:
                     dummy-one@example.org: {}
                     smarty-two@example.org: {}
               EOF
-              yq eval-all -i 'select(fileIndex == 0) * select(fileIndex == 1)' fence.yaml temp-fence-config.yaml
-              rm temp-fence-config.yaml
+              yq eval-all -i 'select(fileIndex == 0) * select(fileIndex == 1)' fence.yaml temp-fence.yaml
+              rm temp-fence.yaml
 
               yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd.yaml
 
@@ -554,7 +583,7 @@ jobs:
             if: ${{ env.SKIP_TESTS != 'true' && (steps.create_ns.outcome == 'success' || steps.select_ci_env.outcome == 'success') }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             run: |
-              echo $UPDATED_FOLDERS
+              echo $SOURCE_CONFIG
               mkdir $HOME/.gen3
               mkdir logs
               echo "****** Prepare CI Environment ******" > logs/gh_action_logs.txt
