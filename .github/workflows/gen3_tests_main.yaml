@@ -419,9 +419,9 @@ jobs:
               cat <<EOF > temp-fence.yaml
               fence:
                 externalSecrets:
-                  createK8sFenceConfigSecret: true
-                  createK8sGoogleAppSecrets: true
-                  createK8sJwtKeysSecret: true
+                  createK8sFenceConfigSecret: "true"
+                  createK8sGoogleAppSecrets: "true"
+                  createK8sJwtKeysSecret: "true"
                 usersync:
                   usersync: false  # use the useryaml job instead of the usersync cronjob
                 FENCE_CONFIG:  # use private config because it takes precedence over public config
