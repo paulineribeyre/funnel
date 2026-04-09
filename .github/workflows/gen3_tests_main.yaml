@@ -612,8 +612,12 @@ jobs:
                 ports:
                 - port: 9000
                   targetPort: 9000
+                  #nodePort: 30900
+                #type: NodePort
               EOF
               kubectl wait -n ${{ env.NAMESPACE }} --for=condition=Ready pod/minio --timeout=60s
+              #KIND_IP=$(kubectl get node -n ${{ env.NAMESPACE }} -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+              #curl http://$KIND_IP:30900/health/live
 
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
           # Generate API keys for test users for the environment
