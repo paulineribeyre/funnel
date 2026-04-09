@@ -603,6 +603,7 @@ jobs:
               kind: Service
               metadata:
                 name: minio
+                namespace: ${{ env.NAMESPACE }}
               spec:
                 selector:
                   app: minio
