@@ -418,6 +418,9 @@ jobs:
               yq eval -i '.gen3-workflow.gen3WorkflowConfig.kmsEncryptionEnabled = false' gen3-workflow.yaml
               yq eval -i '.gen3-workflow.image.tag = "feat_s3-endpoint"' gen3-workflow.yaml
 
+              # overwrite gen3-workflow config `EKS_CLUSTER_NAME` to an empty string
+              yq eval -i '.global.clusterName = ""' values.yaml
+
               cat <<EOF > temp-fence.yaml
               fence:
                 image:
