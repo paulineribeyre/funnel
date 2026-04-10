@@ -420,6 +420,8 @@ jobs:
 
               cat <<EOF > temp-fence.yaml
               fence:
+                image:
+                  tag: 'usersync-fixes'
                 externalSecrets:
                   createK8sFenceConfigSecret: "true"
                   createK8sGoogleAppSecrets: "true"
