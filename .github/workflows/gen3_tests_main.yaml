@@ -518,8 +518,11 @@ jobs:
               yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd.yaml
 
               yq eval -i '.funnel.postgres.dbCreate = false' funnel.yaml
-              yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
               yq eval -i '.funnel.funnel.postgresql.enabled = false' funnel.yaml
+              yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
+              yq eval -i '.funnel.funnel.Kubernetes.NodeSelector = ""' funnel.yaml
+              yq eval -i '.funnel.funnel.Kubernetes.Tolerations = []' funnel.yaml
+              yq eval -i '.funnel.funnel.Kubernetes.Worker.PriorityClassName = ""' funnel.yaml
 
               # TODO add the configs below or remove this block
               # funnel:
