@@ -621,6 +621,24 @@ jobs:
                   #nodePort: 30900
                 #type: NodePort
               EOF
+              max_retries=10
+              delay=10
+              for attempt in $(seq 1 $max_retries); do
+                echo "Attempt $attempt..."
+                kubectl get pods -n ${{ env.NAMESPACE }}
+                if kubectl get pods -n ${{ env.NAMESPACE }} | grep -q '0/'; then
+                  echo "minio pods are not ready"
+                else
+                  echo "minio pods are ready"
+                  break
+                fi
+                if [ "$attempt" -lt "$max_retries" ]; then
+                  echo "Retrying in $delay seconds..."
+                  sleep "$delay"
+                else
+                  echo "minio pods still not ready after $max_retries attempts. Giving up"
+                fi
+              done
               kubectl wait -n ${{ env.NAMESPACE }} --for=condition=Ready pod/minio --timeout=120s
               #KIND_IP=$(kubectl get node -n ${{ env.NAMESPACE }} -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
               #curl http://$KIND_IP:30900/health/live
@@ -629,6 +647,7 @@ jobs:
               helm repo add external-secrets https://charts.external-secrets.io
               helm repo update
               helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true --version 0.8.5
+              # TODO use kubectl wait instead
               max_retries=10
               delay=10
               for attempt in $(seq 1 $max_retries); do
