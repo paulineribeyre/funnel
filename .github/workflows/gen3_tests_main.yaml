@@ -524,7 +524,7 @@ jobs:
               yq eval -i '.funnel.funnel.Kubernetes.NodeSelector = {}' funnel.yaml
               yq eval -i '.funnel.funnel.Kubernetes.Tolerations = []' funnel.yaml
               yq eval -i '.funnel.funnel.Kubernetes.Worker.PriorityClassName = ""' funnel.yaml
-              yq eval -i '.funnel.endpoint_url = "http://minio.funnel-pr-1.svc.cluster.local:9000"' funnel.yaml
+              yq eval -i '.funnel.funnel.endpoint_url = "http://minio.funnel-pr-1.svc.cluster.local:9000"' funnel.yaml
 
               # TODO add the configs below or remove this block
               # funnel:
