@@ -412,6 +412,7 @@ jobs:
               rm ./* && mv ../to-keep/* .
 
               # TODO add gen3-workflow s3 endpoint config once it's added to helm chart
+              yq eval -i '.gen3-workflow.enabled = true' gen3-workflow.yaml
               yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3AccessKeyId = "minioadmin"' gen3-workflow.yaml
               yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3SecretAccessKey = "minioadmin"' gen3-workflow.yaml
               # disable KMS encryption - it might be doable with Minio KMS if we want to enable it in the future
