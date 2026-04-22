@@ -671,12 +671,23 @@ jobs:
               # done
 
               # see https://github.com/awslabs/mountpoint-s3-csi-driver/blob/db678c1/docs/CONFIGURATION.md#driver-level-credentials-with-kubernetes-secrets
-              kubectl create secret generic aws-secret --namespace kube-system --from-literal "key_id=minioadmin" --from-literal "access_key=minioadmin"
+              kubectl create secret generic aws-secret --namespace kube-system --from-literal "key_id=minioadmin" --from-literal "access_key=minioadmin" --from-literal "session_token="
+
+              sleep 5
 
               helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
               helm repo update
-              helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system  aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
+              helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
               kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=60s
+
+              echo "--- kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env"
+              kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env
+              echo "--- kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'"
+              kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'
+              echo "--- kubectl get pv -l app=funnel -o yaml | grep -A 20 mountOptions"
+              kubectl get pv -l app=funnel -o yaml | grep -A 20 mountOptions
+              echo "--- kubectl run -it --rm debug -n mount-s3 --image=curlimages/curl --restart=Never -- curl -v http://minio.funnel-pr-1.svc.cluster.local:9000/minio/health/live"
+              kubectl run -it --rm debug -n mount-s3 --image=curlimages/curl --restart=Never -- curl -v http://minio.funnel-pr-1.svc.cluster.local:9000/minio/health/live
 
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
           # Generate API keys for test users for the environment
