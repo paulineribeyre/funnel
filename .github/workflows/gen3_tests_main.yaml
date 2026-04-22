@@ -644,7 +644,7 @@ jobs:
               #KIND_IP=$(kubectl get node -n ${{ env.NAMESPACE }} -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
               #curl http://$KIND_IP:30900/health/live
 
-              helm repo add gen3 https://helm.gen3.org
+              # helm repo add gen3 https://helm.gen3.org
               helm repo add external-secrets https://charts.external-secrets.io
               helm repo update
               helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true --version 0.8.5
@@ -668,6 +668,9 @@ jobs:
               #     return 1
               #   fi
               # done
+
+              # see https://github.com/awslabs/mountpoint-s3-csi-driver/blob/db678c1/docs/CONFIGURATION.md#driver-level-credentials-with-kubernetes-secrets
+              kubectl create secret generic aws-secret --namespace kube-system --from-literal "key_id=minioadmin" --from-literal "access_key=minioadmin"
 
               helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
               helm repo update
