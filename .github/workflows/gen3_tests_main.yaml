@@ -622,25 +622,25 @@ jobs:
                   #nodePort: 30900
                 #type: NodePort
               EOF
-              max_retries=10
-              delay=10
-              for attempt in $(seq 1 $max_retries); do
-                echo "Attempt $attempt..."
-                kubectl get pods -n ${{ env.NAMESPACE }}
-                if kubectl get pods -n ${{ env.NAMESPACE }} | grep -q '0/'; then
-                  echo "minio pods are not ready"
-                else
-                  echo "minio pods are ready"
-                  break
-                fi
-                if [ "$attempt" -lt "$max_retries" ]; then
-                  echo "Retrying in $delay seconds..."
-                  sleep "$delay"
-                else
-                  echo "minio pods still not ready after $max_retries attempts. Giving up"
-                fi
-              done
-              kubectl wait -n ${{ env.NAMESPACE }} --for=condition=Ready pod/minio --timeout=120s
+              # max_retries=10
+              # delay=10
+              # for attempt in $(seq 1 $max_retries); do
+              #   echo "Attempt $attempt..."
+              #   kubectl get pods -n ${{ env.NAMESPACE }}
+              #   if kubectl get pods -n ${{ env.NAMESPACE }} | grep -q '0/'; then
+              #     echo "minio pods are not ready"
+              #   else
+              #     echo "minio pods are ready"
+              #     break
+              #   fi
+              #   if [ "$attempt" -lt "$max_retries" ]; then
+              #     echo "Retrying in $delay seconds..."
+              #     sleep "$delay"
+              #   else
+              #     echo "minio pods still not ready after $max_retries attempts. Giving up"
+              #   fi
+              # done
+              kubectl wait -n ${{ env.NAMESPACE }} --for=condition=Ready pod/minio --timeout=60s
               #KIND_IP=$(kubectl get node -n ${{ env.NAMESPACE }} -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
               #curl http://$KIND_IP:30900/health/live
 
@@ -648,30 +648,31 @@ jobs:
               helm repo add external-secrets https://charts.external-secrets.io
               helm repo update
               helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true --version 0.8.5
-              # TODO use kubectl wait instead
-              max_retries=10
-              delay=10
-              for attempt in $(seq 1 $max_retries); do
-                echo "Attempt $attempt..."
-                kubectl get pods -n external-secrets
-                if kubectl get pods -n external-secrets | grep -q '0/'; then
-                  echo "external-secrets pods are not ready"
-                else
-                  echo "external-secrets pods are ready"
-                  break
-                fi
-                if [ "$attempt" -lt "$max_retries" ]; then
-                  echo "Retrying in $delay seconds..."
-                  sleep "$delay"
-                else
-                  echo "external-secrets pods still not ready after $max_retries attempts. Giving up"
-                  return 1
-                fi
-              done
+              kubectl wait -n external-secrets --for=condition=Ready pod --all --timeout=60s
+              # max_retries=10
+              # delay=10
+              # for attempt in $(seq 1 $max_retries); do
+              #   echo "Attempt $attempt..."
+              #   kubectl get pods -n external-secrets
+              #   if kubectl get pods -n external-secrets | grep -q '0/'; then
+              #     echo "external-secrets pods are not ready"
+              #   else
+              #     echo "external-secrets pods are ready"
+              #     break
+              #   fi
+              #   if [ "$attempt" -lt "$max_retries" ]; then
+              #     echo "Retrying in $delay seconds..."
+              #     sleep "$delay"
+              #   else
+              #     echo "external-secrets pods still not ready after $max_retries attempts. Giving up"
+              #     return 1
+              #   fi
+              # done
 
               helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
               helm repo update
               helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system  aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
+              kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=60s
 
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
           # Generate API keys for test users for the environment
