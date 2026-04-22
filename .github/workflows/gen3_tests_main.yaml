@@ -675,9 +675,27 @@ jobs:
 
               sleep 5
 
+              cat <<EOF > values-kind.yaml
+              mountpointPod:
+                namespace: mount-s3
+                env:
+                  - name: AWS_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: aws-secret
+                        namespace: kube-system
+                        key: key_id
+                  - name: AWS_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: aws-secret
+                        namespace: kube-system
+                        key: access_key
+              EOF
+
               helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
               helm repo update
-              helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
+              helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver -f values-kind.yaml
               kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=60s
 
               # echo "--- kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env"
