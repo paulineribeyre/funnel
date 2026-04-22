@@ -680,14 +680,11 @@ jobs:
               helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver
               kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=60s
 
-              echo "--- kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env"
-              kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env
-              echo "--- kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'"
-              kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'
-              echo "--- kubectl get pv -l app=funnel -o yaml | grep -A 20 mountOptions"
-              kubectl get pv -l app=funnel -o yaml | grep -A 20 mountOptions
-              echo "--- kubectl run -it --rm debug -n mount-s3 --image=curlimages/curl --restart=Never -- curl -v http://minio.funnel-pr-1.svc.cluster.local:9000/minio/health/live"
-              kubectl run -it --rm debug -n mount-s3 --image=curlimages/curl --restart=Never -- curl -v http://minio.funnel-pr-1.svc.cluster.local:9000/minio/health/live
+              # echo "--- kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env"
+              # kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env
+
+              # echo "--- kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'"
+              # kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'
 
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
           # Generate API keys for test users for the environment
