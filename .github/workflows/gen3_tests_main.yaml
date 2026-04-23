@@ -413,11 +413,12 @@ jobs:
 
               # TODO add gen3-workflow s3 endpoint config once it's added to helm chart
               yq eval -i '.gen3-workflow.enabled = true' gen3-workflow.yaml
+              yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3UpstreamEndpoint = "http://minio.funnel-pr-1.svc.cluster.local:9000"' gen3-workflow.yaml
               yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3AccessKeyId = "minioadmin"' gen3-workflow.yaml
               yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3SecretAccessKey = "minioadmin"' gen3-workflow.yaml
               # disable KMS encryption - it might be doable with Minio KMS if we want to enable it in the future
               yq eval -i '.gen3-workflow.gen3WorkflowConfig.kmsEncryptionEnabled = false' gen3-workflow.yaml
-              yq eval -i '.gen3-workflow.image.tag = "debug-logs"' gen3-workflow.yaml
+              yq eval -i '.gen3-workflow.image.tag = "debug-logs"' gen3-workflow.yaml  # TODO remove
 
               # overwrite gen3-workflow config `EKS_CLUSTER_NAME` to an empty string
               yq eval -i '.global.clusterName = ""' values.yaml
@@ -520,11 +521,14 @@ jobs:
 
               yq eval -i '.funnel.postgres.dbCreate = false' funnel.yaml
               yq eval -i '.funnel.funnel.postgresql.enabled = false' funnel.yaml
+              # TODO: why is this not "workflow-pods-funnel-pr-1"?
               yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
               yq eval -i '.funnel.funnel.Kubernetes.NodeSelector = {}' funnel.yaml
               yq eval -i '.funnel.funnel.Kubernetes.Tolerations = []' funnel.yaml
               yq eval -i '.funnel.funnel.Kubernetes.Worker.PriorityClassName = ""' funnel.yaml
               yq eval -i '.funnel.funnel.endpoint_url = "http://minio.funnel-pr-1.svc.cluster.local:9000"' funnel.yaml
+              yq eval -i '.funnel.funnel.authenticationSource = "driver"' funnel.yaml
+              yq eval -i '.funnel.funnel.stsRegion = ""' funnel.yaml
 
               # TODO add the configs below or remove this block
               # funnel:
