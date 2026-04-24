@@ -38,7 +38,7 @@ externalSecrets:
 usersync:
     usersync: false  # use the useryaml job instead of the usersync cronjob
 FENCE_CONFIG:  # use private config because it takes precedence over public config
-    BASE_URL: 'http://fence-service.${{ env.NAMESPACE }}.svc.cluster.local'
+    BASE_URL: 'http://fence-service.${NAMESPACE}.svc.cluster.local'
     OPENID_CONNECT:
     fence:
         api_base_url: ''
@@ -203,7 +203,7 @@ apiVersion: v1
 kind: Pod
 metadata:
 name: minio
-namespace: ${{ env.NAMESPACE }}
+namespace: ${NAMESPACE}
 labels:
     app: minio
 spec:
@@ -223,7 +223,7 @@ apiVersion: v1
 kind: Service
 metadata:
 name: minio
-namespace: ${{ env.NAMESPACE }}
+namespace: ${NAMESPACE}
 spec:
 selector:
     app: minio
@@ -263,6 +263,6 @@ helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-
 helm repo update
 helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver -f values-kind.yaml
 
-kubectl wait -n ${{ env.NAMESPACE }} --for=condition=Ready pod/minio --timeout=120s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod/minio --timeout=120s
 kubectl wait -n external-secrets --for=condition=Ready pod --all --timeout=120s
 kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=120s
