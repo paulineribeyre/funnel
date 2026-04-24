@@ -31,94 +31,94 @@ yq eval -i '.global.clusterName = ""' values.yaml
 
 cat <<EOF > temp-fence.yaml
 fence:
-  externalSecrets:
-    createK8sFenceConfigSecret: "true"
-    createK8sGoogleAppSecrets: "true"
-    createK8sJwtKeysSecret: "true"
-  usersync:
-    usersync: false  # use the useryaml job instead of the usersync cronjob
-  FENCE_CONFIG:  # use private config because it takes precedence over public config
-    BASE_URL: http://fence-service.${NAMESPACE}.svc.cluster.local
-    OPENID_CONNECT:
-      fence:
-        api_base_url: ""
-        client_id: abc
-        client_secret: xyz
-      ras:
-        discovery_url: https://stsstg.nih.gov/.well-known/openid-configuration
-        client_id: abc
-        client_secret: xyz
-        redirect_url: "{{BASE_URL}}/login/ras/callback"
-      google:
-        discovery_url: https://accounts.google.com/.well-known/openid-configuration
-        client_id: abc
-        client_secret: xyz
-        redirect_url: "{{BASE_URL}}/login/google/login/"
-    AWS_CREDENTIALS:
-      cdistest:
-        aws_access_key_id: abc
-        aws_secret_access_key: xyz
-  USER_YAML: |
-    authz:
-    policies:
-        - id: gen3_workflow_user
-        description: Allows the creation of workflow tasks
-        role_ids:
-        - gen3_workflow_creator
-        resource_paths:
-        - /services/workflow/gen3-workflow/tasks
-        - id: gen3_workflow_storage_admin
-        description: Allows access to manage all the user buckets
-        role_ids:
-        - gen3_workflow_admin
-        resource_paths:
-        - /services/workflow/gen3-workflow/storage
-    resources:
-        - name: 'services'
-        subresources:
-            - name: 'workflow'
-            subresources:
-                - name: 'gen3-workflow'
-                subresources:
-                - name: 'tasks'
-                - name: 'storage'
-    roles:
-        - id: gen3_workflow_reader
-        permissions:
-        - id: gen3_workflow_reader_action
-            action:
-            service: gen3-workflow
-            method: read
-        - id: gen3_workflow_creator
-        permissions:
-        - id: gen3_workflow_creator_action
-            action:
-            service: gen3-workflow
-            method: create
-        - id: gen3_workflow_admin
-        permissions:
-        - id: gen3_workflow_admin_action
-            action:
-            service: gen3-workflow
-            method: '*'
-    clients:
-    funnel-plugin-client:
-        policies:
-        - gen3_workflow_storage_admin
-    users:
-    main@example.org:
-        admin: true
-        policies:
-        - 'gen3_workflow_user'
-    indexing@example.org: {}
-    user0@example.org:
-        admin: false
-        policies:
-        - 'gen3_workflow_user'
-    user1@example.org: {}
-    user2@example.org: {}
-    dummy-one@example.org: {}
-    smarty-two@example.org: {}
+    externalSecrets:
+        createK8sFenceConfigSecret: "true"
+        createK8sGoogleAppSecrets: "true"
+        createK8sJwtKeysSecret: "true"
+    usersync:
+        usersync: false  # use the useryaml job instead of the usersync cronjob
+    FENCE_CONFIG:  # use private config because it takes precedence over public config
+        BASE_URL: 'http://fence-service.${NAMESPACE}.svc.cluster.local'
+        OPENID_CONNECT:
+            fence:
+                api_base_url: ''
+                client_id: 'abc'
+                client_secret: 'xyz'
+            ras:
+                discovery_url: 'https://stsstg.nih.gov/.well-known/openid-configuration'
+                client_id: 'abc'
+                client_secret: 'xyz'
+                redirect_url: '{{BASE_URL}}/login/ras/callback'
+            google:
+                discovery_url: 'https://accounts.google.com/.well-known/openid-configuration'
+                client_id: 'abc'
+                client_secret: 'xyz'
+                redirect_url: '{{BASE_URL}}/login/google/login/'
+        AWS_CREDENTIALS:
+            cdistest:
+                aws_access_key_id: 'abc'
+                aws_secret_access_key: 'xyz'
+    USER_YAML: |
+        authz:
+          policies:
+            - id: gen3_workflow_user
+              description: Allows the creation of workflow tasks
+              role_ids:
+                - gen3_workflow_creator
+              resource_paths:
+                - /services/workflow/gen3-workflow/tasks
+            - id: gen3_workflow_storage_admin
+              description: Allows access to manage all the user buckets
+              role_ids:
+                - gen3_workflow_admin
+              resource_paths:
+                - /services/workflow/gen3-workflow/storage
+          resources:
+            - name: services
+              subresources:
+                - name: workflow
+                  subresources:
+                    - name: gen3-workflow
+                      subresources:
+                        - name: tasks
+                        - name: storage
+          roles:
+            - id: gen3_workflow_reader
+              permissions:
+                - id: gen3_workflow_reader_action
+                  action:
+                    service: gen3-workflow
+                    method: read
+            - id: gen3_workflow_creator
+              permissions:
+                - id: gen3_workflow_creator_action
+                  action:
+                    service: gen3-workflow
+                    method: create
+            - id: gen3_workflow_admin
+              permissions:
+                - id: gen3_workflow_admin_action
+                  action:
+                    service: gen3-workflow
+                    method: "*"
+        clients:
+          funnel-plugin-client:
+            policies:
+              - gen3_workflow_storage_admin
+        users:
+          main@example.org:
+            admin: true
+            policies:
+              - gen3_workflow_user
+          indexing@example.org: {}
+          user0@example.org:
+            admin: false
+            policies:
+              - gen3_workflow_user
+          user1@example.org: {}
+          user2@example.org: {}
+          dummy-one@example.org: {}
+          smarty-two@example.org: {}
 EOF
 yq eval-all -i 'select(fileIndex == 0) * select(fileIndex == 1)' fence.yaml temp-fence.yaml
 rm temp-fence.yaml
