@@ -39,6 +39,16 @@ on:
         required: false
         type: string
         default: "false"
+      SETUP_SCRIPT_1:
+        description: 'A Bash script that handles necessary setup before namespace creation'
+        required: false
+        type: string
+        default: ""
+      SETUP_SCRIPT_2:
+        description: 'A Bash script that handles necessary setup before environment preparation'
+        required: false
+        type: string
+        default: ""
     secrets:
       CI_TEST_ORCID_USERID:
         required: false
@@ -302,27 +312,11 @@ jobs:
 
           - name: Run custom script (pre namespace creation)
             id: run_custom_script_1
-            if: ${{ env.SKIP_TESTS != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.SETUP_SCRIPT_1 }}
             working-directory: ${{ github.workspace }}
             run: |
-              curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
-              chmod +x ./kind
-              sudo mv ./kind /usr/local/bin/kind
-              kind version
-
-              CLUSTER_NAME=kind-cluster
-              K8S_VERSION=v1.35.0
-              NODE_IMAGE=kindest/node:${K8S_VERSION}
-
-              cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --image "$NODE_IMAGE" --config=-
-              kind: Cluster
-              apiVersion: kind.x-k8s.io/v1alpha4
-              nodes:
-                - role: control-plane
-                - role: worker
-              EOF
-
-              kubectl wait --for=condition=Ready nodes --all --timeout=180s
+              echo "Running setup script ${{ inputs.SETUP_SCRIPT_1 }}"
+              bash ${{ inputs.SETUP_SCRIPT_1 }}
 
           # Create PR namespace and PR hostname env var
           - name: Create namespace and env vars
@@ -367,274 +361,11 @@ jobs:
 
           - name: Run custom script (pre environment preparation)
             id: run_custom_script_2
-            if: ${{ env.SKIP_TESTS != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.SETUP_SCRIPT_2 }}
             working-directory: ${{ github.workspace }}
             run: |
-              # - Disable unnecessary services. Master list:
-              #   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
-              #   (this could also be done automatically by using `--set` for all `<service>.enabled`
-              #   in the `helm install` command)
-              # - "zzz-" file name so it's the last file to be processed and these values override
-              #   previous ones.
-              # - Reset funnel DB config so it can use a local postgres pod:
-              #   https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
-              # - update fence and indexd configs to generate secrets instead of looking for
-              # pre-existing secrets
-
-              cd gen3-gitops-ci/ci/default/values && mkdir ../to-keep
-              mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml ../to-keep
-              rm ./* && mv ../to-keep/* .
-
-              yq eval -i '.gen3-workflow.enabled = true' gen3-workflow.yaml
-              yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3UpstreamEndpoint = "http://minio.funnel-pr-1.svc.cluster.local:9000"' gen3-workflow.yaml
-              yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3AccessKeyId = "minioadmin"' gen3-workflow.yaml
-              yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3SecretAccessKey = "minioadmin"' gen3-workflow.yaml
-              # disable KMS encryption - it might be doable with Minio KMS if we want to enable it in the future
-              yq eval -i '.gen3-workflow.gen3WorkflowConfig.kmsEncryptionEnabled = false' gen3-workflow.yaml
-              # kind clusters do not have nodepools
-              yq eval -i '.gen3-workflow.gen3WorkflowConfig.enableOptimizedNodeScheduling = false' gen3-workflow.yaml
-              #yq eval -i '.gen3-workflow.image.tag = "support-kind"' gen3-workflow.yaml  # TODO remove
-
-              # overwrite gen3-workflow config `EKS_CLUSTER_NAME` to an empty string
-              yq eval -i '.global.clusterName = ""' values.yaml
-
-              cat <<EOF > temp-fence.yaml
-              fence:
-                externalSecrets:
-                  createK8sFenceConfigSecret: "true"
-                  createK8sGoogleAppSecrets: "true"
-                  createK8sJwtKeysSecret: "true"
-                usersync:
-                  usersync: false  # use the useryaml job instead of the usersync cronjob
-                FENCE_CONFIG:  # use private config because it takes precedence over public config
-                  BASE_URL: 'http://fence-service.${{ env.NAMESPACE }}.svc.cluster.local'
-                  OPENID_CONNECT:
-                    fence:
-                      api_base_url: ''
-                      client_id: 'abc'
-                      client_secret: 'xyz'
-                    ras:
-                      discovery_url: 'https://stsstg.nih.gov/.well-known/openid-configuration'
-                      client_id: 'abc'
-                      client_secret: 'xyz'
-                      redirect_url: '{{BASE_URL}}/login/ras/callback'
-                    google:
-                      discovery_url: 'https://accounts.google.com/.well-known/openid-configuration'
-                      client_id: 'abc'
-                      client_secret: 'xyz'
-                      redirect_url: '{{BASE_URL}}/login/google/login/'
-                  AWS_CREDENTIALS:
-                    cdistest:
-                      aws_access_key_id: 'abc'
-                      aws_secret_access_key: 'xyz'
-                USER_YAML: |
-                  authz:
-                    policies:
-                      - id: gen3_workflow_user
-                        description: Allows the creation of workflow tasks
-                        role_ids:
-                        - gen3_workflow_creator
-                        resource_paths:
-                        - /services/workflow/gen3-workflow/tasks
-                      - id: gen3_workflow_storage_admin
-                        description: Allows access to manage all the user buckets
-                        role_ids:
-                        - gen3_workflow_admin
-                        resource_paths:
-                        - /services/workflow/gen3-workflow/storage
-                    resources:
-                      - name: 'services'
-                        subresources:
-                          - name: 'workflow'
-                            subresources:
-                              - name: 'gen3-workflow'
-                                subresources:
-                                - name: 'tasks'
-                                - name: 'storage'
-                    roles:
-                      - id: gen3_workflow_reader
-                        permissions:
-                        - id: gen3_workflow_reader_action
-                          action:
-                            service: gen3-workflow
-                            method: read
-                      - id: gen3_workflow_creator
-                        permissions:
-                        - id: gen3_workflow_creator_action
-                          action:
-                            service: gen3-workflow
-                            method: create
-                      - id: gen3_workflow_admin
-                        permissions:
-                        - id: gen3_workflow_admin_action
-                          action:
-                            service: gen3-workflow
-                            method: '*'
-                  clients:
-                    funnel-plugin-client:
-                      policies:
-                      - gen3_workflow_storage_admin
-                  users:
-                    main@example.org:
-                      admin: true
-                      policies:
-                      - 'gen3_workflow_user'
-                    indexing@example.org: {}
-                    user0@example.org:
-                      admin: false
-                      policies:
-                      - 'gen3_workflow_user'
-                    user1@example.org: {}
-                    user2@example.org: {}
-                    dummy-one@example.org: {}
-                    smarty-two@example.org: {}
-              EOF
-              yq eval-all -i 'select(fileIndex == 0) * select(fileIndex == 1)' fence.yaml temp-fence.yaml
-              rm temp-fence.yaml
-
-              yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd.yaml
-
-              yq eval -i '.funnel.postgres.dbCreate = false' funnel.yaml
-              yq eval -i '.funnel.funnel.postgresql.enabled = false' funnel.yaml
-              # TODO: why is this not "workflow-pods-funnel-pr-1"?
-              yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
-              yq eval -i '.funnel.funnel.Kubernetes.NodeSelector = {}' funnel.yaml
-              yq eval -i '.funnel.funnel.Kubernetes.Tolerations = []' funnel.yaml
-              yq eval -i '.funnel.funnel.Kubernetes.Worker.PriorityClassName = ""' funnel.yaml
-              yq eval -i '.funnel.funnel.endpoint_url = "http://minio.funnel-pr-1.svc.cluster.local:9000"' funnel.yaml
-              yq eval -i '.funnel.funnel.authenticationSource = "driver"' funnel.yaml
-              yq eval -i '.funnel.funnel.stsRegion = ""' funnel.yaml
-
-              # TODO add the configs below or remove this block
-              # funnel:
-              #   funnel:
-              #     image:
-              #      tag: $BRANCH # TODO test
-              #     Postgres:
-              #       Host: funnel-postgresql.default.svc.cluster.local
-              #       Database: funnel
-              #       User: funnel
-              #       Password: example
-
-              cat <<EOF > zzz-disable-services.yaml
-              access-backend:
-                enabled: false
-              ambassador:
-                enabled: false
-              argo-wrapper::
-                enabled: false
-              audit:
-                enabled: false
-              cedar:
-                enabled: false
-              cohort-middleware:
-                enabled: false
-              dicom-server:
-                enabled: false
-              etl:
-                enabled: false
-              frontend-framework:
-                enabled: false
-              gen3-user-data-library:
-                enabled: false
-              guppy:
-                enabled: false
-              hatchery:
-                enabled: false
-              manifestservice:
-                enabled: false
-              metadata:
-                enabled: false
-              ohif-viewer:
-                enabled: false
-              orthanc:
-                enabled: false
-              peregrine:
-                enabled: false
-              portal:
-                enabled: false
-              requestor:
-                enabled: false
-              sheepdog:
-                enabled: false
-              sower:
-                enabled: false
-              ssjdispatcher:
-                enabled: false
-              wts:
-                enabled: false
-              EOF
-
-              # deploy MinIO
-
-              kubectl apply -f - <<EOF
-              apiVersion: v1
-              kind: Pod
-              metadata:
-                name: minio
-                namespace: ${{ env.NAMESPACE }}
-                labels:
-                  app: minio
-              spec:
-                containers:
-                - name: minio
-                  image: quay.io/minio/minio:latest-cicd
-                  args: ["server", "/data"]
-                  env:
-                  - name: MINIO_ROOT_USER
-                    value: minioadmin
-                  - name: MINIO_ROOT_PASSWORD
-                    value: minioadmin
-                  ports:
-                  - containerPort: 9000
-              ---
-              apiVersion: v1
-              kind: Service
-              metadata:
-                name: minio
-                namespace: ${{ env.NAMESPACE }}
-              spec:
-                selector:
-                  app: minio
-                ports:
-                - port: 9000
-                  targetPort: 9000
-                  #nodePort: 30900
-                #type: NodePort
-              EOF
-
-              helm repo add external-secrets https://charts.external-secrets.io
-              helm repo update
-              helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true --version 0.8.5
-
-              # see https://github.com/awslabs/mountpoint-s3-csi-driver/blob/db678c1/docs/CONFIGURATION.md#driver-level-credentials-with-kubernetes-secrets
-              kubectl create secret generic aws-secret --namespace kube-system --from-literal "key_id=minioadmin" --from-literal "access_key=minioadmin" --from-literal "session_token="
-
-              cat <<EOF > values-kind.yaml
-              mountpointPod:
-                namespace: mount-s3
-                env:
-                  - name: AWS_ACCESS_KEY_ID
-                    valueFrom:
-                      secretKeyRef:
-                        name: aws-secret
-                        namespace: kube-system
-                        key: key_id
-                  - name: AWS_SECRET_ACCESS_KEY
-                    valueFrom:
-                      secretKeyRef:
-                        name: aws-secret
-                        namespace: kube-system
-                        key: access_key
-              EOF
-
-              helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
-              helm repo update
-              helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system aws-mountpoint-s3-csi-driver/aws-mountpoint-s3-csi-driver -f values-kind.yaml
-
-              kubectl wait -n ${{ env.NAMESPACE }} --for=condition=Ready pod/minio --timeout=120s
-              kubectl wait -n external-secrets --for=condition=Ready pod --all --timeout=120s
-              kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=120s
+              echo "Running setup script ${{ inputs.SETUP_SCRIPT_2 }}"
+              bash ${{ inputs.SETUP_SCRIPT_2 }}
 
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
           # Generate API keys for test users for the environment
@@ -764,7 +495,7 @@ jobs:
 
           - name: Upload allure report to S3
             id: upload_allure_report
-            if: ${{ env.SKIP_TESTS != 'true' && steps.generate_allure_report.outcome == 'success' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' && steps.generate_allure_report.outcome == 'success' }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             run: |
               echo -e "\n\n******* Upload reports to S3 *******" >> logs/gh_action_logs.txt

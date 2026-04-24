@@ -16,4 +16,5 @@ jobs:
       SERVICE_TO_TEST: gen3_workflow
       TEST_REPO_BRANCH: support-kind
       EXTERNAL_TO_CTDS: "true"
-
+      SETUP_SCRIPT_1: .github/workflows/ci_start_kind_cluster.sh
+      SETUP_SCRIPT_2: .github/workflows/ci_override_config.sh
