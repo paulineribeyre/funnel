@@ -35,33 +35,29 @@ on:
       TEST_LABELS:
         required: false
         type: string
-      AWS_ROLE_TO_ASSUME:
-        required: false
-        type: string
-        default: "arn:aws:iam::707767160287:role/github-action-role"
-      RUN_IN_LOCAL_KIND_CLUSTER:
+      EXTERNAL_TO_CTDS:
         required: false
         type: string
         default: "false"
-    # secrets:
-    #   CI_TEST_ORCID_USERID:
-    #     required: true
-    #   CI_TEST_ORCID_PASSWORD:
-    #     required: true
-    #   CI_TEST_RAS_EMAIL:
-    #     required: true
-    #   CI_TEST_RAS_PASSWORD:
-    #     required: true
-    #   CI_TEST_RAS_2_EMAIL:
-    #     required: true
-    #   CI_TEST_RAS_2_PASSWORD:
-    #     required: true
-    #   CI_SLACK_BOT_TOKEN:
-    #     required: true
-    #   CI_SLACK_CHANNEL_ID:
-    #     required: true
-    #   EKS_CLUSTER_NAME:
-    #     required: false
+    secrets:
+      CI_TEST_ORCID_USERID:
+        required: false
+      CI_TEST_ORCID_PASSWORD:
+        required: false
+      CI_TEST_RAS_EMAIL:
+        required: false
+      CI_TEST_RAS_PASSWORD:
+        required: false
+      CI_TEST_RAS_2_EMAIL:
+        required: false
+      CI_TEST_RAS_2_PASSWORD:
+        required: false
+      CI_SLACK_BOT_TOKEN:
+        required: false
+      CI_SLACK_CHANNEL_ID:
+        required: false
+      EKS_CLUSTER_NAME:
+        required: false
 
 permissions:
   id-token: write
@@ -105,42 +101,8 @@ jobs:
           QUAY_REPO: ${{ inputs.QUAY_REPO }}
           IS_NIGHTLY_RUN: ${{ inputs.IS_NIGHTLY_RUN }}
           TEST_LABELS: ${{ inputs.TEST_LABELS }}
+          CI_ENV: ${{ inputs.CI_ENV }}
           SKIP_TESTS: 'false'
-
-          # S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          # AWS_REGION: us-east-1
-          # CLUSTER_NAME: mountpoint-s3-csi
-          # K8S_VERSION: v1.35.0
-
-        # services:
-        #   # image: quay.io/minio/minio
-        #   # image: quay.io/minio/minio:latest-cicd
-        #   # s3_mock:
-        #   #   image: minio/minio:latest
-        #   #   ports:
-        #   #     - "9000:9000"
-        #   #     - "9001:9001"
-        #   #   # Set command to start the server
-        #   #   command: server /data --console-address ":9001"
-        #   #   env:
-        #   #     MINIO_ROOT_USER: minioadmin
-        #   #     MINIO_ROOT_PASSWORD: minioadmin
-        #   # minio:
-        #   #   image: bitnami/minio:latest
-        #   #   env:
-        #   #     MINIO_ACCESS_KEY: minio
-        #   #     MINIO_SECRET_KEY: minio
-        #   #   ports:
-        #   #     - 9000:9000
-        #   #   options: --name minio-server
-        #   minio:
-        #     # image: cparta/minio-cicd:latest
-        #     image: quay.io/minio/minio:latest-cicd
-        #     ports:
-        #       - 9000:9000
-        #     env:
-        #       MINIO_ROOT_USER: minioadmin
-        #       MINIO_ROOT_PASSWORD: minioadmin
 
         steps:
           - name: Set Start Time
@@ -150,14 +112,18 @@ jobs:
               echo "GITHUB_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
 
           # External PRs will not have access to secrets, so tests cannot run
-          # - name: Skip integration tests for external PRs
-          #   if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
-          #   working-directory: ${{ github.workspace }}
-          #   run:  |
-          #     echo "Current repo: ${{ github.event.repository.full_name }}"
-          #     echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
-          #     echo "Skipping integration tests for external PRs"
-          #     echo "SKIP_TESTS=true" >> $GITHUB_ENV
+          - name: Skip integration tests for external PRs
+            if: ${{ github.event.pull_request.head.repo.fork == true && github.event_name == 'pull_request' }}
+            working-directory: ${{ github.workspace }}
+            run:  |
+              echo "Current repo: ${{ github.event.repository.full_name }}"
+              echo "Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
+              if gh api repos/$REPO_FN/pulls/$PR_NUM --jq '.labels | map(.name) | .[] | select(. == "safe to test")' | grep -q .; then
+                  echo "External PR is labeled with 'safe to test': proceeding"
+              else
+                  echo "::error::External PRs cannot run integration tests unless they are labeled with 'safe to test'"
+                  exit 1
+              fi
 
           # Skip integration tests when the following PR labels are present:
           # not-ready-for-ci / decommission-environment
@@ -173,7 +139,7 @@ jobs:
           # Checkout current repo
           - name: Checkout current repo
             if: ${{ env.SKIP_TESTS != 'true' }}
-            uses: actions/checkout@v4
+            uses: actions/checkout@v6
 
           # Skip tests when there are only markdown files
           - name: Skip integration tests if PR contains only Markdown files
@@ -193,7 +159,7 @@ jobs:
           # Checkout master branch of gen3-code-vigil when another repo is under test
           - name: Checkout integration test code
             if: ${{ env.SKIP_TESTS != 'true' && github.event.repository.name  != 'gen3-code-vigil' }}
-            uses: actions/checkout@v4
+            uses: actions/checkout@v6
             with:
               repository: uc-cdis/gen3-code-vigil
               ref: ${{ inputs.TEST_REPO_BRANCH }}
@@ -202,7 +168,7 @@ jobs:
           # Checkout gen3-gitops repo
           - name: Checkout gen3-gitops repo
             if: ${{ env.SKIP_TESTS != 'true' }}
-            uses: actions/checkout@v4
+            uses: actions/checkout@v6
             with:
               repository: uc-cdis/gen3-gitops
               ref: 'master'
@@ -247,43 +213,6 @@ jobs:
             with:
               version: latest
 
-          - name: Install kind
-            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
-            run: |
-              curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
-              chmod +x ./kind
-              sudo mv ./kind /usr/local/bin/kind
-              kind version
-          # - name: Install AWS CLI
-          #   run: |
-          #     sudo apt-get update
-          #     sudo apt-get install -y awscli
-          #     aws --version
-          # - name: Configure AWS credentials
-          #   uses: aws-actions/configure-aws-credentials@v4
-          #   with:
-          #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          #     aws-region: ${{ env.AWS_REGION }}
-          - name: Start kind cluster
-            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
-            working-directory: ${{ github.workspace }}
-            run: |
-              CLUSTER_NAME=kind-cluster
-              K8S_VERSION=v1.35.0
-              NODE_IMAGE=kindest/node:${K8S_VERSION}
-
-              echo "🚀 Creating kind cluster: $CLUSTER_NAME"
-              cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --image "$NODE_IMAGE" --config=-
-              kind: Cluster
-              apiVersion: kind.x-k8s.io/v1alpha4
-              nodes:
-                - role: control-plane
-                - role: worker
-              EOF
-
-              kubectl wait --for=condition=Ready nodes --all --timeout=180s
-
           # # Setup GCP
           # - name: 'Authenticate with GCP'
           #   uses: 'google-github-actions/auth@v2'
@@ -326,21 +255,21 @@ jobs:
               sudo apt update && poetry run playwright install-deps && poetry run playwright install --with-deps chromium
               sudo apt install openjdk-11-jre -y
 
-          # # Configure credentials to access cluster.
-          # - name: Configure AWS Credentials
-          #   if: ${{ env.SKIP_TESTS != 'true' }}
-          #   uses: aws-actions/configure-aws-credentials@v3
-          #   with:
-          #       role-to-assume: ${{ inputs.AWS_ROLE_TO_ASSUME }}
-          #       role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          #       aws-region: "us-east-1"
-          #       role-duration-seconds: 7200
+          # Configure credentials to access cluster.
+          - name: Configure AWS Credentials
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' }}
+            uses: aws-actions/configure-aws-credentials@v3
+            with:
+                role-to-assume: arn:aws:iam::707767160287:role/github-action-role
+                role-session-name: GitHub_to_AWS_via_FederatedOIDC
+                aws-region: "us-east-1"
+                role-duration-seconds: 7200
 
-          # # Create kubeconfig to point at cluster.
-          # - name: Update kube config
-          #   if: ${{ env.SKIP_TESTS != 'true' }}
-          #   run: |
-          #     aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region "us-east-1"
+          # Create kubeconfig to point at cluster.
+          - name: Update kube config
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' }}
+            run: |
+              aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region "us-east-1"
 
           # Ensure we do not cross the threshold of maximum number of CI envs allowed
           # The workflow waits if CI infrastructure is at capacity (MAX_ENVS, set to 10)
@@ -378,8 +307,13 @@ jobs:
             # Change the HOSTNAME with full domain name
             run: |
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
-                NAMESPACE=nightly-build
-                HOSTNAME=nightly-build.ci.planx-pla.net
+                if [[ "$CI_ENV" == "gen3ff" ]]; then
+                  NAMESPACE=nightly-build-ff
+                  HOSTNAME=nightly-build-ff.ci.planx-pla.net
+                else
+                  NAMESPACE=nightly-build
+                  HOSTNAME=nightly-build.ci.planx-pla.net
+                fi
               else
                 NAMESPACE=${REPO}-pr-${PR_NUM}
                 HOSTNAME=${REPO}-pr-${PR_NUM}.ci.planx-pla.net
@@ -407,20 +341,41 @@ jobs:
               SOURCE_CONFIG=$(echo "$PR_FILES" | grep -v "^.github/" | awk -F'/' '{if ($1 != ".github" && NF > 1) print $1"/"$2}' | sort -u | tr '\n' ',' | sed 's/,$//')
               echo "SOURCE_CONFIG=$SOURCE_CONFIG" >> $GITHUB_ENV
 
-          - name: Override config
-            if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
+          - name: Run custom script
+            id: run_custom_script
+            if: ${{ env.SKIP_TESTS != 'true' }}
             working-directory: ${{ github.workspace }}
-            # - Disable unnecessary services. Master list:
-            #   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
-            #   (this could also be done automatically by using `--set` for all `<service>.enabled`
-            #   in the `helm install` command)
-            # - "zzz-" file name so it's the last file to be processed and these values override
-            #   previous ones.
-            # - Reset funnel DB config so it can use a local postgres pod:
-            #   https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
-            # - update fence and indexd configs to generate secrets instead of looking for
-            # pre-existing secrets
             run: |
+              curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+              chmod +x ./kind
+              sudo mv ./kind /usr/local/bin/kind
+              kind version
+
+              CLUSTER_NAME=kind-cluster
+              K8S_VERSION=v1.35.0
+              NODE_IMAGE=kindest/node:${K8S_VERSION}
+
+              cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --image "$NODE_IMAGE" --config=-
+              kind: Cluster
+              apiVersion: kind.x-k8s.io/v1alpha4
+              nodes:
+                - role: control-plane
+                - role: worker
+              EOF
+
+              kubectl wait --for=condition=Ready nodes --all --timeout=180s
+
+              # - Disable unnecessary services. Master list:
+              #   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
+              #   (this could also be done automatically by using `--set` for all `<service>.enabled`
+              #   in the `helm install` command)
+              # - "zzz-" file name so it's the last file to be processed and these values override
+              #   previous ones.
+              # - Reset funnel DB config so it can use a local postgres pod:
+              #   https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
+              # - update fence and indexd configs to generate secrets instead of looking for
+              # pre-existing secrets
+
               cd gen3-gitops-ci/ci/default/values && mkdir ../to-keep
               mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml ../to-keep
               rm ./* && mv ../to-keep/* .
@@ -605,8 +560,8 @@ jobs:
                 enabled: false
               EOF
 
-          - name: Deploy MinIO in kind cluster
-            run: |
+              # deploy MinIO
+
               kubectl apply -f - <<EOF
               apiVersion: v1
               kind: Pod
@@ -642,55 +597,13 @@ jobs:
                   #nodePort: 30900
                 #type: NodePort
               EOF
-              # max_retries=10
-              # delay=10
-              # for attempt in $(seq 1 $max_retries); do
-              #   echo "Attempt $attempt..."
-              #   kubectl get pods -n ${{ env.NAMESPACE }}
-              #   if kubectl get pods -n ${{ env.NAMESPACE }} | grep -q '0/'; then
-              #     echo "minio pods are not ready"
-              #   else
-              #     echo "minio pods are ready"
-              #     break
-              #   fi
-              #   if [ "$attempt" -lt "$max_retries" ]; then
-              #     echo "Retrying in $delay seconds..."
-              #     sleep "$delay"
-              #   else
-              #     echo "minio pods still not ready after $max_retries attempts. Giving up"
-              #   fi
-              # done
-              #KIND_IP=$(kubectl get node -n ${{ env.NAMESPACE }} -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-              #curl http://$KIND_IP:30900/health/live
 
-              # helm repo add gen3 https://helm.gen3.org
               helm repo add external-secrets https://charts.external-secrets.io
               helm repo update
               helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true --version 0.8.5
-              # max_retries=10
-              # delay=10
-              # for attempt in $(seq 1 $max_retries); do
-              #   echo "Attempt $attempt..."
-              #   kubectl get pods -n external-secrets
-              #   if kubectl get pods -n external-secrets | grep -q '0/'; then
-              #     echo "external-secrets pods are not ready"
-              #   else
-              #     echo "external-secrets pods are ready"
-              #     break
-              #   fi
-              #   if [ "$attempt" -lt "$max_retries" ]; then
-              #     echo "Retrying in $delay seconds..."
-              #     sleep "$delay"
-              #   else
-              #     echo "external-secrets pods still not ready after $max_retries attempts. Giving up"
-              #     return 1
-              #   fi
-              # done
 
               # see https://github.com/awslabs/mountpoint-s3-csi-driver/blob/db678c1/docs/CONFIGURATION.md#driver-level-credentials-with-kubernetes-secrets
               kubectl create secret generic aws-secret --namespace kube-system --from-literal "key_id=minioadmin" --from-literal "access_key=minioadmin" --from-literal "session_token="
-
-              sleep 5
 
               cat <<EOF > values-kind.yaml
               mountpointPod:
@@ -718,12 +631,6 @@ jobs:
               kubectl wait -n external-secrets --for=condition=Ready pod --all --timeout=120s
               kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=120s
 
-              # echo "--- kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env"
-              # kubectl exec -n kube-system ds/s3-csi-node -c s3-plugin -- env
-
-              # echo "--- kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'"
-              # kubectl get secret aws-secret -n kube-system -o jsonpath='{.data}'
-
           # Apply the changes to the manifest of the selected CI environment, roll the pods and run usersync
           # Generate API keys for test users for the environment
           - name: Prepare CI environment
@@ -738,6 +645,22 @@ jobs:
               if ! poetry run python -m gen3_ci.scripts.prepare_ci_environment >> logs/gh_action_logs.txt 2>&1; then
                 echo "PR_ERROR_MSG=Failed to Prepare CI environment" >> $GITHUB_ENV
                 exit 1
+              fi
+
+          - name: Check for crashloop pods from Prepare CI environment
+            id: check_crashloop_pods
+            if: ${{ env.SKIP_TESTS != 'true' && steps.prep_ci_env.outcome != 'success' }}
+            continue-on-error: true  # if this fails, we still need to run clean-up steps1
+            run: |
+              if [[ -n "$FAILURE_PODS" ]]; then
+                  {
+                    echo "PR_ERROR_MSG<<EOF"
+                    echo "Failed to Prepare CI environment."
+                    echo ""
+                    echo "The following pods are not in healthy state:"
+                    echo "$FAILURE_PODS"
+                    echo "EOF"
+                  } >> "$GITHUB_ENV"
               fi
 
           # This is used for running specific test suites by labeling the PR with the test class
@@ -765,7 +688,7 @@ jobs:
             run: |
               echo -e "\n\n************ Run tests ************" >> logs/gh_action_logs.txt
               mkdir output
-              poetry run pytest -n logical -m "${{ inputs.SERVICE_TO_TEST }} and not wip" --alluredir allure-results --no-header --dist loadscope ${{ env.TEST_LABEL }} >> logs/gh_action_logs.txt 2>&1
+              poetry run pytest --video=retain-on-failure -n logical -m "${{ inputs.SERVICE_TO_TEST }} and not wip" --alluredir allure-results --no-header --dist loadscope ${{ env.TEST_LABEL }} >> logs/gh_action_logs.txt 2>&1
               if [ $? -ne 0 ]; then
                 echo "PR_ERROR_MSG=Test(s) failures encountered in PR" >> $GITHUB_ENV
               fi
@@ -777,10 +700,45 @@ jobs:
             run: |
               echo -e "\n\n************ Run tests ************" >> logs/gh_action_logs.txt
               mkdir output
-              poetry run pytest -n logical -m "not wip" --alluredir allure-results --no-header --dist loadscope ${{ env.TEST_LABEL }} >> logs/gh_action_logs.txt 2>&1
+              poetry run pytest --video=retain-on-failure -n logical -m "not wip" --alluredir allure-results --no-header --dist loadscope ${{ env.TEST_LABEL }} >> logs/gh_action_logs.txt 2>&1
               if [ $? -ne 0 ]; then
                 echo "PR_ERROR_MSG=Test(s) failures encountered in PR" >> $GITHUB_ENV
               fi
+
+          - name: Rerun failed tests
+            id: rerun_failed_tests
+            if: ${{ env.SKIP_TESTS != 'true' && env.FAILED_TEST_SUITES != '' }}
+            continue-on-error: true  # if this fails, we still need to run clean-up steps
+            env:
+              RERUNNING_TESTS: true
+            run: |
+              echo -e "\n\n************ Rerunning failed tests ************" >> logs/gh_action_logs.txt 2>&1
+              mv output/report.md output/report_run_before_rerun.md
+              poetry run pytest --video=retain-on-failure -n logical -m "not wip" --alluredir rerun-allure-results --no-header --dist loadscope --last-failed --last-failed-no-failures=none >> logs/gh_action_logs.txt 2>&1
+              if [ $? -ne 0 ]; then
+                echo "PR_ERROR_MSG=Test(s) failures encountered in PR" >> $GITHUB_ENV
+              fi
+
+          # - name: Helm uninstall environment
+          #   id: helm_uninstall_env
+          #   continue-on-error: true  # if this fails, we still need to run clean-up steps
+          #   run: |
+          #     helm uninstall $NAMESPACE -n $NAMESPACE
+
+          - name: Merge report.md if failed tests were rerun
+            id: merge_report_md_on_rerun
+            if: ${{ env.SKIP_TESTS != 'true' && env.FAILED_TEST_SUITES != '' }}
+            continue-on-error: true  # if this fails, we still need to run clean-up steps
+            run: |
+              mv output/report.md output/report_run_after_rerun.md
+              echo -e "Test summary after running integration tests" > output/report.md
+              {
+                cat output/report_run_before_rerun.md
+              } >> output/report.md
+              echo -e "\nTest summary after rerunning failed integration tests" >> output/report.md
+              {
+                cat output/report_run_after_rerun.md
+              } >> output/report.md
 
           - name: Generate allure report
             id: generate_allure_report
@@ -792,6 +750,12 @@ jobs:
               if [ $? -ne 0 ]; then
                 echo "PR_ERROR_MSG=Failed to generate allure report" >> $GITHUB_ENV
               fi
+              if [ -n "$FAILED_TEST_SUITES" ]; then
+                allure generate rerun-allure-results -o rerun-allure-report --clean
+                if [ $? -ne 0 ]; then
+                  echo "PR_ERROR_MSG=Failed to generate allure report on rerun attempt" >> $GITHUB_ENV
+                fi
+              fi
 
           - name: Upload allure report to S3
             id: upload_allure_report
@@ -801,9 +765,15 @@ jobs:
               echo -e "\n\n******* Upload reports to S3 *******" >> logs/gh_action_logs.txt
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                 DATE=$(date +%Y%m%d)
-                aws s3 sync ./allure-report s3://ci-allure-reports/nightly-run/$DATE >> logs/gh_action_logs.txt 2>&1
+                aws s3 sync ./allure-report s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                if [ -n "$FAILED_TEST_SUITES" ]; then
+                  aws s3 sync ./rerun-allure-report s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE-rerun/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                fi
               else
                 aws s3 sync ./allure-report s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                if [ -n "$FAILED_TEST_SUITES" ]; then
+                  aws s3 sync ./rerun-allure-report s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun >> logs/gh_action_logs.txt 2>&1
+                fi
               fi
               if [ $? -ne 0 ]; then
                 echo "PR_ERROR_MSG=Failed to upload allure report to s3 bucket" >> $GITHUB_ENV
@@ -811,7 +781,7 @@ jobs:
 
           - name: Print logs
             id: print_logs
-            if: ${{ env.SKIP_TESTS != 'true' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS == 'true' }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             run: |
               echo Logs:
@@ -819,15 +789,15 @@ jobs:
 
           - name: Upload logs to S3
             id: upload_gh_action_logs
-            if: ${{ env.SKIP_TESTS != 'true' && (steps.prep_ci_env.outcome == 'success' || steps.prep_ci_env.outcome == 'failure') }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' && (steps.prep_ci_env.outcome == 'success' || steps.prep_ci_env.outcome == 'failure') }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             run: |
-              echo -e "\n\n******** Upload logs to S3 ********" >> logs/gh_action_logs.txt
+              echo -e "\n\n******** Upload GH action logs to S3 ********" >> logs/gh_action_logs.txt
               if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                 DATE=$(date +%Y%m%d)
-                aws s3 sync ./logs s3://ci-allure-reports/nightly-run/$DATE >> logs/gh_action_logs.txt 2>&1
+                aws s3 cp logs/gh_action_logs.txt s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE/$RUN_NUM/$ATTEMPT_NUM/gh_action_logs.txt >> logs/gh_action_logs.txt 2>&1
               else
-                aws s3 sync ./logs s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM >> logs/gh_action_logs.txt 2>&1
+                aws s3 cp logs/gh_action_logs.txt s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/gh_action_logs.txt >> logs/gh_action_logs.txt 2>&1
               fi
               if [ $? -ne 0 ]; then
                 echo "PR_ERROR_MSG=Failed to upload allure report to s3 bucket" >> $GITHUB_ENV
@@ -849,19 +819,33 @@ jobs:
               if [ "${{ steps.upload_allure_report.outcome }}" == "success" ]; then
                 if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                   DATE=$(date +%Y%m%d)
-                  echo -e "\nPlease find the detailed integration test report [here](https://allure.ci.planx-pla.net/nightly-run/$DATE/index.html)" >> output/report.md
+                  echo -e "\nPlease find the detailed integration test report [here](https://allure.ci.planx-pla.net/nightly-run-$CI_ENV/$DATE/$RUN_NUM/$ATTEMPT_NUM/index.html)" >> output/report.md
+                  if [ -n "$FAILED_TEST_SUITES" ]; then
+                    echo -e "\nPlease find the detailed integration test report after rerunning failed tests [here](https://allure.ci.planx-pla.net/nightly-run-$CI_ENV/$DATE-rerun/$RUN_NUM/$ATTEMPT_NUM/index.html)" >> output/report.md
+                  fi
                 else
                   echo -e "\nPlease find the detailed integration test report [here](https://allure.ci.planx-pla.net/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/index.html)" >> output/report.md
+                  if [ -n "$FAILED_TEST_SUITES" ]; then
+                    echo -e "\nPlease find the detailed integration test report after rerunning failed tests [here](https://allure.ci.planx-pla.net/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM-rerun/index.html)" >> output/report.md
+                  fi
                 fi
               fi
               if [ "${{ steps.upload_gh_action_logs.outcome }}" == "success" ]; then
                 if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
                   DATE=$(date +%Y%m%d)
-                  echo -e "\nPlease find the Github Action logs [here](https://allure.ci.planx-pla.net/nightly-run/$DATE/gh_action_logs.txt)" >> output/report.md
+                  echo -e "\nPlease find the Github Action logs [here](https://allure.ci.planx-pla.net/nightly-run-$CI_ENV/$DATE/$RUN_NUM/$ATTEMPT_NUM/gh_action_logs.txt)" >> output/report.md
                 else
                   echo -e "\nPlease find the Github Action logs [here](https://allure.ci.planx-pla.net/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/gh_action_logs.txt)" >> output/report.md
                 fi
               fi
+              # if [ "${{ steps.upload_analyze_failure_file_logs.outcome }}" == "success" ]; then
+              #   if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
+              #     DATE=$(date +%Y%m%d)
+              #     echo -e "\nPlease find the Github Action logs [here](https://allure.ci.planx-pla.net/nightly-run-$CI_ENV/$DATE/$RUN_NUM/$ATTEMPT_NUM/failure_analysis.txt)" >> output/report.md
+              #   else
+              #     echo -e "\nPlease find the Github Action logs [here](https://allure.ci.planx-pla.net/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/failure_analysis.txt)" >> output/report.md
+              #   fi
+              # fi
 
           - name: Render report to the PR
             id: publish_md_report
@@ -873,13 +857,13 @@ jobs:
 
           - name: Generate Slack report
             id: generate_slack_report
-            if: ${{ env.SKIP_TESTS != 'true' && (steps.upload_allure_report.outcome == 'success' || steps.upload_gh_action_logs.outcome == 'success') }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' && (steps.upload_allure_report.outcome == 'success' || steps.upload_gh_action_logs.outcome == 'success') }}
             continue-on-error: true # if this fails, we still need to run clean-up steps
             run: poetry run python -m gen3_ci.scripts.generate_slack_report
 
           - name: Publish report to Slack
             id: slack_notify
-            if: ${{ env.SKIP_TESTS != 'true' && steps.generate_slack_report.outcome == 'success' }}
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' && steps.generate_slack_report.outcome == 'success' }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             uses: slackapi/slack-github-action@v2.0.0
             with:
@@ -888,8 +872,38 @@ jobs:
               payload-file-path: "./${{ inputs.WORKING_DIR }}/slack_report.json"
               payload-templated: true
 
+          - name: Analyze Failures using AI agent
+            id: analyze_failures_using_ai_agent
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' && (steps.prep_ci_env.outcome == 'failure' || ((steps.run_service_tests.outcome == 'failure' || steps.run_tests.outcome == 'failure') && steps.rerun_failed_tests.outcome != 'success')) }}
+            continue-on-error: true  # if this fails, we still need to run clean-up steps
+            run: |
+              echo -e "\n\n****** Running Analyze Failures using AI agent ******" >>  logs/gh_action_logs.txt
+              poetry run python -m gen3_ci.scripts.analyze_failed_tests_using_ai_agent >> logs/gh_action_logs.txt 2>&1
+              if [[ "$IS_NIGHTLY_RUN" == "true" ]]; then
+                DATE=$(date +%Y%m%d)
+                aws s3 cp logs/failure_analysis.txt s3://ci-allure-reports/nightly-run-$CI_ENV/$DATE/$RUN_NUM/$ATTEMPT_NUM/failure_analysis.txt >> logs/gh_action_logs.txt 2>&1
+              else
+                aws s3 cp logs/failure_analysis.txt s3://ci-allure-reports/$REPO/$PR_NUM/$RUN_NUM/$ATTEMPT_NUM/failure_analysis.txt >> logs/gh_action_logs.txt 2>&1
+              fi
+              if [ $? -ne 0 ]; then
+                echo "PR_ERROR_MSG=Failed to run analyze failures using ai agent step" >> $GITHUB_ENV
+              fi
+            env:
+              THREAD_TS: ${{ steps.slack_notify.outputs.ts }}
+
+          - name: Publish test anaylsis on same slack thread
+            id: publish_test_analysis
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' && steps.analyze_failures_using_ai_agent.outcome == 'success' }}
+            continue-on-error: true  # if this fails, we still need to run clean-up steps
+            uses: slackapi/slack-github-action@v2.0.0
+            with:
+              method: chat.postMessage
+              token: ${{ secrets.CI_SLACK_BOT_TOKEN }}
+              payload-file-path: "./${{ inputs.WORKING_DIR }}/test_analysis_slack_report.json"
+              payload-templated: true
+
           - name: Mark workflow as failed for unsuccessful test runs
-            if: ${{ env.SKIP_TESTS != 'true' && steps.run_service_tests.outcome != 'success' && steps.run_tests.outcome != 'success' }}
+            if: ${{ env.SKIP_TESTS != 'true' && steps.run_service_tests.outcome != 'success' && steps.run_tests.outcome != 'success' && steps.rerun_failed_tests.outcome != 'success' }}
             run: echo "Test run was unsuccessful, marking workflow as failed" && exit 1
 
           - name: Cleanup

@@ -14,6 +14,6 @@ jobs:
     uses: paulineribeyre/funnel/.github/workflows/gen3_tests_main.yaml@ci
     with:
       SERVICE_TO_TEST: gen3_workflow
-      RUN_IN_LOCAL_KIND_CLUSTER: "true"
       TEST_REPO_BRANCH: support-kind
+      EXTERNAL_TO_CTDS: "true"
 
