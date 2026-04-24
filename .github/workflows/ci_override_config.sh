@@ -31,34 +31,34 @@ yq eval -i '.global.clusterName = ""' values.yaml
 
 cat <<EOF > temp-fence.yaml
 fence:
-externalSecrets:
+  externalSecrets:
     createK8sFenceConfigSecret: "true"
     createK8sGoogleAppSecrets: "true"
     createK8sJwtKeysSecret: "true"
-usersync:
+  usersync:
     usersync: false  # use the useryaml job instead of the usersync cronjob
-FENCE_CONFIG:  # use private config because it takes precedence over public config
-    BASE_URL: 'http://fence-service.${NAMESPACE}.svc.cluster.local'
+  FENCE_CONFIG:  # use private config because it takes precedence over public config
+    BASE_URL: http://fence-service.${NAMESPACE}.svc.cluster.local
     OPENID_CONNECT:
-    fence:
-        api_base_url: ''
-        client_id: 'abc'
-        client_secret: 'xyz'
-    ras:
-        discovery_url: 'https://stsstg.nih.gov/.well-known/openid-configuration'
-        client_id: 'abc'
-        client_secret: 'xyz'
-        redirect_url: '{{BASE_URL}}/login/ras/callback'
-    google:
-        discovery_url: 'https://accounts.google.com/.well-known/openid-configuration'
-        client_id: 'abc'
-        client_secret: 'xyz'
-        redirect_url: '{{BASE_URL}}/login/google/login/'
+      fence:
+        api_base_url: ""
+        client_id: abc
+        client_secret: xyz
+      ras:
+        discovery_url: https://stsstg.nih.gov/.well-known/openid-configuration
+        client_id: abc
+        client_secret: xyz
+        redirect_url: "{{BASE_URL}}/login/ras/callback"
+      google:
+        discovery_url: https://accounts.google.com/.well-known/openid-configuration
+        client_id: abc
+        client_secret: xyz
+        redirect_url: "{{BASE_URL}}/login/google/login/"
     AWS_CREDENTIALS:
-    cdistest:
-        aws_access_key_id: 'abc'
-        aws_secret_access_key: 'xyz'
-USER_YAML: |
+      cdistest:
+        aws_access_key_id: abc
+        aws_secret_access_key: xyz
+  USER_YAML: |
     authz:
     policies:
         - id: gen3_workflow_user
@@ -149,89 +149,88 @@ yq eval -i '.funnel.funnel.stsRegion = ""' funnel.yaml
 
 cat <<EOF > zzz-disable-services.yaml
 access-backend:
-enabled: false
+  enabled: false
 ambassador:
-enabled: false
-argo-wrapper::
-enabled: false
+  enabled: false
+"argo-wrapper:":
+  enabled: false
 audit:
-enabled: false
+  enabled: false
 cedar:
-enabled: false
+  enabled: false
 cohort-middleware:
-enabled: false
+  enabled: false
 dicom-server:
-enabled: false
+  enabled: false
 etl:
-enabled: false
+  enabled: false
 frontend-framework:
-enabled: false
+  enabled: false
 gen3-user-data-library:
-enabled: false
+  enabled: false
 guppy:
-enabled: false
+  enabled: false
 hatchery:
-enabled: false
+  enabled: false
 manifestservice:
-enabled: false
+  enabled: false
 metadata:
-enabled: false
+  enabled: false
 ohif-viewer:
-enabled: false
+  enabled: false
 orthanc:
-enabled: false
+  enabled: false
 peregrine:
-enabled: false
+  enabled: false
 portal:
-enabled: false
+  enabled: false
 requestor:
-enabled: false
+  enabled: false
 sheepdog:
-enabled: false
+  enabled: false
 sower:
-enabled: false
+  enabled: false
 ssjdispatcher:
-enabled: false
+  enabled: false
 wts:
-enabled: false
+  enabled: false
 EOF
 
 # deploy MinIO
-
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Pod
 metadata:
-name: minio
-namespace: ${NAMESPACE}
-labels:
+  name: minio
+  namespace: ${NAMESPACE}
+  labels:
     app: minio
 spec:
-containers:
-- name: minio
-    image: quay.io/minio/minio:latest-cicd
-    args: ["server", "/data"]
-    env:
-    - name: MINIO_ROOT_USER
-    value: minioadmin
-    - name: MINIO_ROOT_PASSWORD
-    value: minioadmin
-    ports:
-    - containerPort: 9000
+  containers:
+    - name: minio
+      image: quay.io/minio/minio:latest-cicd
+      args:
+        - server
+        - /data
+      env:
+        - name: MINIO_ROOT_USER
+          value: minioadmin
+        - name: MINIO_ROOT_PASSWORD
+          value: minioadmin
+      ports:
+        - containerPort: 9000
 ---
 apiVersion: v1
 kind: Service
 metadata:
-name: minio
-namespace: ${NAMESPACE}
+  name: minio
+  namespace: ${NAMESPACE}
 spec:
-selector:
+  selector:
     app: minio
-ports:
-- port: 9000
-    targetPort: 9000
-    #nodePort: 30900
-#type: NodePort
+  ports:
+    - port: 9000
+      targetPort: 9000
 EOF
 
 helm repo add external-secrets https://charts.external-secrets.io
@@ -243,20 +242,20 @@ kubectl create secret generic aws-secret --namespace kube-system --from-literal 
 
 cat <<EOF > values-kind.yaml
 mountpointPod:
-namespace: mount-s3
-env:
+  namespace: mount-s3
+  env:
     - name: AWS_ACCESS_KEY_ID
-    valueFrom:
+      valueFrom:
         secretKeyRef:
-        name: aws-secret
-        namespace: kube-system
-        key: key_id
+          name: aws-secret
+          namespace: kube-system
+          key: key_id
     - name: AWS_SECRET_ACCESS_KEY
-    valueFrom:
+      valueFrom:
         secretKeyRef:
-        name: aws-secret
-        namespace: kube-system
-        key: access_key
+          name: aws-secret
+          namespace: kube-system
+          key: access_key
 EOF
 
 helm repo add aws-mountpoint-s3-csi-driver https://awslabs.github.io/mountpoint-s3-csi-driver
