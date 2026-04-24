@@ -268,7 +268,21 @@ jobs:
           - name: Start kind cluster
             if: ${{ env.SKIP_TESTS != 'true' && inputs.RUN_IN_LOCAL_KIND_CLUSTER == 'true' }}
             working-directory: ${{ github.workspace }}
-            run: bash .github/workflows/kind-simple.sh
+            run: |
+              CLUSTER_NAME=kind-cluster
+              K8S_VERSION=v1.35.0
+              NODE_IMAGE=kindest/node:${K8S_VERSION}
+
+              echo "🚀 Creating kind cluster: $CLUSTER_NAME"
+              cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --image "$NODE_IMAGE" --config=-
+              kind: Cluster
+              apiVersion: kind.x-k8s.io/v1alpha4
+              nodes:
+                - role: control-plane
+                - role: worker
+              EOF
+
+              kubectl wait --for=condition=Ready nodes --all --timeout=180s
 
           # # Setup GCP
           # - name: 'Authenticate with GCP'
