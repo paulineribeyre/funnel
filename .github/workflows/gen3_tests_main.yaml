@@ -300,6 +300,30 @@ jobs:
                 WAITED=$((WAITED + WAIT_INTERVAL))
               done
 
+          - name: Run custom script (pre namespace creation)
+            id: run_custom_script_1
+            if: ${{ env.SKIP_TESTS != 'true' }}
+            working-directory: ${{ github.workspace }}
+            run: |
+              curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+              chmod +x ./kind
+              sudo mv ./kind /usr/local/bin/kind
+              kind version
+
+              CLUSTER_NAME=kind-cluster
+              K8S_VERSION=v1.35.0
+              NODE_IMAGE=kindest/node:${K8S_VERSION}
+
+              cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --image "$NODE_IMAGE" --config=-
+              kind: Cluster
+              apiVersion: kind.x-k8s.io/v1alpha4
+              nodes:
+                - role: control-plane
+                - role: worker
+              EOF
+
+              kubectl wait --for=condition=Ready nodes --all --timeout=180s
+
           # Create PR namespace and PR hostname env var
           - name: Create namespace and env vars
             if: ${{ env.SKIP_TESTS != 'true' }}
@@ -341,30 +365,11 @@ jobs:
               SOURCE_CONFIG=$(echo "$PR_FILES" | grep -v "^.github/" | awk -F'/' '{if ($1 != ".github" && NF > 1) print $1"/"$2}' | sort -u | tr '\n' ',' | sed 's/,$//')
               echo "SOURCE_CONFIG=$SOURCE_CONFIG" >> $GITHUB_ENV
 
-          - name: Run custom script
-            id: run_custom_script
+          - name: Run custom script (pre environment preparation)
+            id: run_custom_script_2
             if: ${{ env.SKIP_TESTS != 'true' }}
             working-directory: ${{ github.workspace }}
             run: |
-              curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
-              chmod +x ./kind
-              sudo mv ./kind /usr/local/bin/kind
-              kind version
-
-              CLUSTER_NAME=kind-cluster
-              K8S_VERSION=v1.35.0
-              NODE_IMAGE=kindest/node:${K8S_VERSION}
-
-              cat <<EOF | kind create cluster --name "$CLUSTER_NAME" --image "$NODE_IMAGE" --config=-
-              kind: Cluster
-              apiVersion: kind.x-k8s.io/v1alpha4
-              nodes:
-                - role: control-plane
-                - role: worker
-              EOF
-
-              kubectl wait --for=condition=Ready nodes --all --timeout=180s
-
               # - Disable unnecessary services. Master list:
               #   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
               #   (this could also be done automatically by using `--set` for all `<service>.enabled`
