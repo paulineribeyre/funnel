@@ -34,9 +34,10 @@ fence:
         createK8sFenceConfigSecret: "true"
         createK8sGoogleAppSecrets: "true"
         createK8sJwtKeysSecret: "true"
-    #usersync:
+    usersync:
     #    usersync: false  # use the useryaml job instead of the usersync cronjob
     #    userYamlS3Path: s3://cdis-gen3-users/ci/user.yaml
+        userYamlS3Endpoint: ${MINIO_SERVICE_URL}
     FENCE_CONFIG:  # use private config because it takes precedence over public config
         BASE_URL: 'http://fence-service.${NAMESPACE}.svc.cluster.local'
         OPENID_CONNECT:
@@ -350,3 +351,6 @@ aws configure set aws_secret_access_key minioadmin
 
 aws s3 mb s3://cdis-gen3-users
 aws s3 cp user.yaml s3://cdis-gen3-users/ci/
+
+# make the bucket public so usersync can access the user.yaml file without configuring credentials
+aws s3api put-bucket-policy --bucket cdis-gen3-users --policy '{"Version":"2012-10-17","Statement":[{"Sid": "PublicRead", "Effect": "Allow", "Principal": "*", "Action": ["s3:GetObject"], "Resource": ["arn:aws:s3:::cdis-gen3-users/*"]}]}'
