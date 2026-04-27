@@ -336,8 +336,7 @@ jobs:
                 NAMESPACE=${REPO}-pr-${PR_NUM}
                 HOSTNAME=${REPO}-pr-${PR_NUM}.ci.planx-pla.net
               fi
-              HOSTNAME=localhost:8000  # for Kind cluster
-              HOSTNAME_PROTOCOL=http  # TODO https for regular case
+              HOSTNAME_PROTOCOL=https
               echo "NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
               echo "HOSTNAME=$HOSTNAME" >> $GITHUB_ENV
               echo "HOSTNAME_PROTOCOL=$HOSTNAME_PROTOCOL" >> $GITHUB_ENV

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Override the HOSTNAME and HOSTNAME_PROTOCOL set by the CI workflow.
+# The Kind cluster is exposed at http://localhost:8000
+echo "HOSTNAME=localhost:8000" >> $GITHUB_ENV
+echo "HOSTNAME_PROTOCOL=http" >> $GITHUB_ENV
+
 MINIO_SERVICE_URL="http://minio.${NAMESPACE}.svc.cluster.local:9000"
 
 # - Disable unnecessary services. Master list:
