@@ -34,7 +34,7 @@ fence:
         createK8sFenceConfigSecret: "true"
         createK8sGoogleAppSecrets: "true"
         createK8sJwtKeysSecret: "true"
-    usersync:
+    #usersync:
     #    usersync: false  # use the useryaml job instead of the usersync cronjob
     #    userYamlS3Path: s3://cdis-gen3-users/ci/user.yaml
     FENCE_CONFIG:  # use private config because it takes precedence over public config
