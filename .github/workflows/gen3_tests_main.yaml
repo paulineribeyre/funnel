@@ -50,7 +50,7 @@ on:
         type: string
         default: ""
       SETUP_SCRIPT_3:
-        description: 'A Bash script that handles necessary setup after environment preparation'
+        description: 'A Bash script that handles necessary setup after environment preparation, before running the tests'
         required: false
         type: string
         default: ""

@@ -338,9 +338,14 @@ users:
   smarty-two@example.org: {}
 EOF
 
-aws configure set endpoint_url ${MINIO_SERVICE_URL}
+kubectl port-forward -n "${NAMESPACE}" service/minio 9000:9000 &
+PF_PID=$!
+trap "kill $PF_PID" EXIT  # kill port-forward when script exits
+sleep 2  # wait for port-forward to be ready
+
+aws configure set endpoint_url http://localhost:9000
 aws configure set aws_access_key_id minioadmin
 aws configure set aws_secret_access_key minioadmin
 
-aws s3 mb s3://cdis-gen3-users --region us-east-1
+aws s3 mb s3://cdis-gen3-users
 aws s3 cp user.yaml s3://cdis-gen3-users/ci/
