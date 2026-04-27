@@ -18,3 +18,4 @@ jobs:
       EXTERNAL_TO_CTDS: "true"
       SETUP_SCRIPT_1: .github/workflows/ci_start_kind_cluster.sh
       SETUP_SCRIPT_2: .github/workflows/ci_override_config_and_start_minio.sh
+      SETUP_SCRIPT_3: .github/workflows/ci_expose_kind_cluster.sh

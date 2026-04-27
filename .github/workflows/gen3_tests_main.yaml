@@ -49,6 +49,11 @@ on:
         required: false
         type: string
         default: ""
+      SETUP_SCRIPT_3:
+        description: 'A Bash script that handles necessary setup after environment preparation'
+        required: false
+        type: string
+        default: ""
     secrets:
       CI_TEST_ORCID_USERID:
         required: false
@@ -397,6 +402,14 @@ jobs:
                     echo "EOF"
                   } >> "$GITHUB_ENV"
               fi
+
+          - name: Run custom script (post environment preparation)
+            id: run_custom_script_3
+            if: ${{ env.SKIP_TESTS != 'true' && inputs.SETUP_SCRIPT_3 }}
+            working-directory: ${{ github.workspace }}
+            run: |
+              echo "Running setup script ${{ inputs.SETUP_SCRIPT_3 }}"
+              bash ${{ inputs.SETUP_SCRIPT_3 }}
 
           # This is used for running specific test suites by labeling the PR with the test class
           # Multiple suites can be executed by adding multiple labels

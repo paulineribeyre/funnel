@@ -339,5 +339,8 @@ users:
 EOF
 
 aws configure set endpoint_url ${MINIO_SERVICE_URL}
+aws configure set aws_access_key_id minioadmin
+aws configure set aws_secret_access_key minioadmin
+
 aws s3 mb s3://cdis-gen3-users --region us-east-1
 aws s3 cp user.yaml s3://cdis-gen3-users/ci/
