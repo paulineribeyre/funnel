@@ -7,6 +7,10 @@ on:
       QUAY_REPO:
         required: false
         type: string
+      # needed to be set if repo org differs in quay
+      QUAY_ORG:
+        required: false
+        type: string
       # set this for service PRs to select tests pertaining to the service under test
       # must match the marker used for the service, please look at the `markers` section of pyproject.toml
       SERVICE_TO_TEST:
@@ -114,6 +118,7 @@ jobs:
           GH_WORKSPACE: ${{ github.workspace }}
           HELM_BRANCH: ${{ inputs.HELM_BRANCH }}
           QUAY_REPO: ${{ inputs.QUAY_REPO }}
+          QUAY_ORG: ${{ inputs.QUAY_ORG }}
           IS_NIGHTLY_RUN: ${{ inputs.IS_NIGHTLY_RUN }}
           TEST_LABELS: ${{ inputs.TEST_LABELS }}
           CI_ENV: ${{ inputs.CI_ENV }}

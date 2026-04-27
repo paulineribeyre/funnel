@@ -14,9 +14,11 @@ jobs:
     uses: paulineribeyre/funnel/.github/workflows/gen3_tests_main.yaml@ci
     with:
       SERVICE_TO_TEST: gen3_workflow
-      TEST_REPO_BRANCH: support-kind
-      HELM_BRANCH: usersync-s3-endpoint
+      QUAY_ORG: ohsu-comp-bio
       EXTERNAL_TO_CTDS: "true"
       SETUP_SCRIPT_1: .github/workflows/ci_start_kind_cluster.sh
       SETUP_SCRIPT_2: .github/workflows/ci_override_config_and_start_minio.sh
       SETUP_SCRIPT_3: .github/workflows/ci_expose_kind_cluster.sh
+      # TODO remove:
+      TEST_REPO_BRANCH: support-kind
+      HELM_BRANCH: usersync-s3-endpoint

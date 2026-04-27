@@ -129,8 +129,6 @@ rm temp-fence.yaml
 # https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
 yq eval -i '.funnel.postgres.dbCreate = false' funnel.yaml
 yq eval -i '.funnel.funnel.postgresql.enabled = false' funnel.yaml
-# TODO: why is this not "workflow-pods-funnel-pr-1"?
-# yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
 yq eval -i '.funnel.funnel.Kubernetes.NodeSelector = {}' funnel.yaml
 yq eval -i '.funnel.funnel.Kubernetes.Tolerations = []' funnel.yaml
 yq eval -i '.funnel.funnel.Kubernetes.Worker.PriorityClassName = ""' funnel.yaml
