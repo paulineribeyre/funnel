@@ -517,6 +517,7 @@ jobs:
 
           - name: Print logs
             id: print_logs
+            # This step only runs for non-CTDS repos where we do not upload the logs to S3
             if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS == 'true' }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             run: |
@@ -627,7 +628,7 @@ jobs:
             env:
               THREAD_TS: ${{ steps.slack_notify.outputs.ts }}
 
-          - name: Publish test anaylsis on same slack thread
+          - name: Publish test analysis on same slack thread
             id: publish_test_analysis
             if: ${{ env.SKIP_TESTS != 'true' && inputs.EXTERNAL_TO_CTDS != 'true' && steps.analyze_failures_using_ai_agent.outcome == 'success' }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps

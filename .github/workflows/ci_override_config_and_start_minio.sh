@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+MINIO_SERVICE_URL="http://minio.${NAMESPACE}.svc.cluster.local:9000"
+
 # - Disable unnecessary services. Master list:
 #   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
 #   (this could also be done automatically by using `--set` for all `<service>.enabled`
@@ -17,7 +19,7 @@ mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.
 rm ./* && mv ../to-keep/* .
 
 yq eval -i '.gen3-workflow.enabled = true' gen3-workflow.yaml
-yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3UpstreamEndpoint = "http://minio.funnel-pr-1.svc.cluster.local:9000"' gen3-workflow.yaml
+MINIO_SERVICE_URL=$MINIO_SERVICE_URL yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3UpstreamEndpoint = strenv(MINIO_SERVICE_URL)' gen3-workflow.yaml
 yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3AccessKeyId = "minioadmin"' gen3-workflow.yaml
 yq eval -i '.gen3-workflow.gen3WorkflowConfig.s3SecretAccessKey = "minioadmin"' gen3-workflow.yaml
 # disable KMS encryption - it might be doable with Minio KMS if we want to enable it in the future
@@ -36,7 +38,8 @@ fence:
         createK8sGoogleAppSecrets: "true"
         createK8sJwtKeysSecret: "true"
     usersync:
-        usersync: false  # use the useryaml job instead of the usersync cronjob
+    #    usersync: false  # use the useryaml job instead of the usersync cronjob
+    #    userYamlS3Path: s3://cdis-gen3-users/ci/user.yaml
     FENCE_CONFIG:  # use private config because it takes precedence over public config
         BASE_URL: 'http://fence-service.${NAMESPACE}.svc.cluster.local'
         OPENID_CONNECT:
@@ -58,67 +61,67 @@ fence:
             cdistest:
                 aws_access_key_id: 'abc'
                 aws_secret_access_key: 'xyz'
-    USER_YAML: |
-        authz:
-          policies:
-            - id: gen3_workflow_user
-              description: Allows the creation of workflow tasks
-              role_ids:
-                - gen3_workflow_creator
-              resource_paths:
-                - /services/workflow/gen3-workflow/tasks
-            - id: gen3_workflow_storage_admin
-              description: Allows access to manage all the user buckets
-              role_ids:
-                - gen3_workflow_admin
-              resource_paths:
-                - /services/workflow/gen3-workflow/storage
-          resources:
-            - name: services
-              subresources:
-                - name: workflow
-                  subresources:
-                    - name: gen3-workflow
-                      subresources:
-                        - name: tasks
-                        - name: storage
-          roles:
-            - id: gen3_workflow_reader
-              permissions:
-                - id: gen3_workflow_reader_action
-                  action:
-                    service: gen3-workflow
-                    method: read
-            - id: gen3_workflow_creator
-              permissions:
-                - id: gen3_workflow_creator_action
-                  action:
-                    service: gen3-workflow
-                    method: create
-            - id: gen3_workflow_admin
-              permissions:
-                - id: gen3_workflow_admin_action
-                  action:
-                    service: gen3-workflow
-                    method: "*"
-        clients:
-          funnel-plugin-client:
-            policies:
-              - gen3_workflow_storage_admin
-        users:
-          main@example.org:
-            admin: true
-            policies:
-              - gen3_workflow_user
-          indexing@example.org: {}
-          user0@example.org:
-            admin: false
-            policies:
-              - gen3_workflow_user
-          user1@example.org: {}
-          user2@example.org: {}
-          dummy-one@example.org: {}
-          smarty-two@example.org: {}
+    # USER_YAML: |
+    #     authz:
+    #       policies:
+    #         - id: gen3_workflow_user
+    #           description: Allows the creation of workflow tasks
+    #           role_ids:
+    #             - gen3_workflow_creator
+    #           resource_paths:
+    #             - /services/workflow/gen3-workflow/tasks
+    #         - id: gen3_workflow_storage_admin
+    #           description: Allows access to manage all the user buckets
+    #           role_ids:
+    #             - gen3_workflow_admin
+    #           resource_paths:
+    #             - /services/workflow/gen3-workflow/storage
+    #       resources:
+    #         - name: services
+    #           subresources:
+    #             - name: workflow
+    #               subresources:
+    #                 - name: gen3-workflow
+    #                   subresources:
+    #                     - name: tasks
+    #                     - name: storage
+    #       roles:
+    #         - id: gen3_workflow_reader
+    #           permissions:
+    #             - id: gen3_workflow_reader_action
+    #               action:
+    #                 service: gen3-workflow
+    #                 method: read
+    #         - id: gen3_workflow_creator
+    #           permissions:
+    #             - id: gen3_workflow_creator_action
+    #               action:
+    #                 service: gen3-workflow
+    #                 method: create
+    #         - id: gen3_workflow_admin
+    #           permissions:
+    #             - id: gen3_workflow_admin_action
+    #               action:
+    #                 service: gen3-workflow
+    #                 method: "*"
+    #     clients:
+    #       funnel-plugin-client:
+    #         policies:
+    #           - gen3_workflow_storage_admin
+    #     users:
+    #       main@example.org:
+    #         admin: true
+    #         policies:
+    #           - gen3_workflow_user
+    #       indexing@example.org: {}
+    #       user0@example.org:
+    #         admin: false
+    #         policies:
+    #           - gen3_workflow_user
+    #       user1@example.org: {}
+    #       user2@example.org: {}
+    #       dummy-one@example.org: {}
+    #       smarty-two@example.org: {}
 EOF
 yq eval-all -i 'select(fileIndex == 0) * select(fileIndex == 1)' fence.yaml temp-fence.yaml
 rm temp-fence.yaml
@@ -128,11 +131,11 @@ yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd
 yq eval -i '.funnel.postgres.dbCreate = false' funnel.yaml
 yq eval -i '.funnel.funnel.postgresql.enabled = false' funnel.yaml
 # TODO: why is this not "workflow-pods-funnel-pr-1"?
-yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
+# yq eval -i '.funnel.funnel.Kubernetes.JobsNamespace = "workflow-pods-default"' funnel.yaml
 yq eval -i '.funnel.funnel.Kubernetes.NodeSelector = {}' funnel.yaml
 yq eval -i '.funnel.funnel.Kubernetes.Tolerations = []' funnel.yaml
 yq eval -i '.funnel.funnel.Kubernetes.Worker.PriorityClassName = ""' funnel.yaml
-yq eval -i '.funnel.funnel.endpoint_url = "http://minio.funnel-pr-1.svc.cluster.local:9000"' funnel.yaml
+MINIO_SERVICE_URL=$MINIO_SERVICE_URL yq eval -i '.funnel.funnel.endpoint_url = strenv(MINIO_SERVICE_URL)' funnel.yaml
 yq eval -i '.funnel.funnel.authenticationSource = "driver"' funnel.yaml
 yq eval -i '.funnel.funnel.stsRegion = ""' funnel.yaml
 
@@ -233,6 +236,7 @@ spec:
       targetPort: 9000
 EOF
 
+# external-secrets is required to install gen3 and is not installed out of the box in kind clusters
 helm repo add external-secrets https://charts.external-secrets.io
 helm repo update
 helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true --version 0.8.5
@@ -265,3 +269,70 @@ helm upgrade --install aws-mountpoint-s3-csi-driver --namespace kube-system aws-
 kubectl wait -n ${NAMESPACE} --for=condition=Ready pod/minio --timeout=120s
 kubectl wait -n external-secrets --for=condition=Ready pod --all --timeout=120s
 kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=120s
+
+cat <<EOF > user.yaml
+authz:
+  policies:
+    - id: gen3_workflow_user
+      description: Allows the creation of workflow tasks
+      role_ids:
+        - gen3_workflow_creator
+      resource_paths:
+        - /services/workflow/gen3-workflow/tasks
+    - id: gen3_workflow_storage_admin
+      description: Allows access to manage all the user buckets
+      role_ids:
+        - gen3_workflow_admin
+      resource_paths:
+        - /services/workflow/gen3-workflow/storage
+  resources:
+    - name: services
+      subresources:
+        - name: workflow
+          subresources:
+            - name: gen3-workflow
+              subresources:
+                - name: tasks
+                - name: storage
+  roles:
+    - id: gen3_workflow_reader
+      permissions:
+        - id: gen3_workflow_reader_action
+          action:
+            service: gen3-workflow
+            method: read
+    - id: gen3_workflow_creator
+      permissions:
+        - id: gen3_workflow_creator_action
+          action:
+            service: gen3-workflow
+            method: create
+    - id: gen3_workflow_admin
+      permissions:
+        - id: gen3_workflow_admin_action
+          action:
+            service: gen3-workflow
+            method: "*"
+clients:
+  funnel-plugin-client:
+    policies:
+      - gen3_workflow_storage_admin
+users:
+  main@example.org:
+    admin: true
+    policies:
+      - gen3_workflow_user
+  indexing@example.org: {}
+  user0@example.org:
+    admin: false
+    policies:
+      - gen3_workflow_user
+  user1@example.org: {}
+  user2@example.org: {}
+  dummy-one@example.org: {}
+  smarty-two@example.org: {}
+EOF
+
+aws configure set endpoint_url ${MINIO_SERVICE_URL}
+aws s3 mb s3://cdis-gen3-users --region us-east-1
+aws s3 cp user.yaml s3://cdis-gen3-users/ci/
