@@ -136,17 +136,6 @@ MINIO_SERVICE_URL=$MINIO_SERVICE_URL yq eval -i '.funnel.funnel.endpoint_url = s
 yq eval -i '.funnel.funnel.authenticationSource = "driver"' funnel.yaml
 yq eval -i '.funnel.funnel.stsRegion = ""' funnel.yaml
 
-# TODO add the configs below or remove this block
-# funnel:
-#   funnel:
-#     image:
-#      tag: $BRANCH # TODO test
-#     Postgres:
-#       Host: funnel-postgresql.default.svc.cluster.local
-#       Database: funnel
-#       User: funnel
-#       Password: example
-
 # Disable unnecessary services. Master list:
 # https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
 # (this could also be done automatically by using `--set` for all `<service>.enabled` in

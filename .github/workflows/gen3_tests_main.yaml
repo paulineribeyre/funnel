@@ -101,7 +101,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.event.repository.name }}
           REPO_FN: ${{ github.event.repository.full_name }}
-          BRANCH: ${{ github.event.pull_request.head.ref }}
+          # TODO remove hardcoded value (needed since testing these changes on funnel fork)
+          BRANCH: "2026-04-21" #${{ github.event.pull_request.head.ref }}
           PR_NUM: ${{ github.event.pull_request.number }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_NUM: ${{ github.run_number }}
