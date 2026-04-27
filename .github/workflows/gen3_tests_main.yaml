@@ -365,7 +365,7 @@ jobs:
 
           - name: Run custom script (pre environment preparation)
             id: run_custom_script_2
-            if: ${{ env.SKIP_TESTS != 'true' && inputs.SETUP_SCRIPT_2 }}
+            if: ${{ env.SKIP_TESTS != 'true' && steps.create_ns.outcome == 'success' && inputs.SETUP_SCRIPT_2 }}
             working-directory: ${{ github.workspace }}
             run: |
               echo "Running setup script ${{ inputs.SETUP_SCRIPT_2 }}"
@@ -375,7 +375,7 @@ jobs:
           # Generate API keys for test users for the environment
           - name: Prepare CI environment
             id: prep_ci_env
-            if: ${{ env.SKIP_TESTS != 'true' && (steps.create_ns.outcome == 'success' || steps.select_ci_env.outcome == 'success') }}
+            if: ${{ env.SKIP_TESTS != 'true' && steps.create_ns.outcome == 'success' }}
             continue-on-error: true  # if this fails, we still need to run clean-up steps
             run: |
               echo $SOURCE_CONFIG
@@ -405,7 +405,7 @@ jobs:
 
           - name: Run custom script (post environment preparation)
             id: run_custom_script_3
-            if: ${{ env.SKIP_TESTS != 'true' && inputs.SETUP_SCRIPT_3 }}
+            if: ${{ env.SKIP_TESTS != 'true' && steps.prep_ci_env.outcome == 'success' && inputs.SETUP_SCRIPT_3 }}
             working-directory: ${{ github.workspace }}
             run: |
               echo "Running setup script ${{ inputs.SETUP_SCRIPT_3 }}"

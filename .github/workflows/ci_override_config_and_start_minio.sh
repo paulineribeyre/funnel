@@ -8,17 +8,7 @@ echo "HOSTNAME_PROTOCOL=http" >> $GITHUB_ENV
 
 MINIO_SERVICE_URL="http://minio.${NAMESPACE}.svc.cluster.local:9000"
 
-# - Disable unnecessary services. Master list:
-#   https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
-#   (this could also be done automatically by using `--set` for all `<service>.enabled`
-#   in the `helm install` command)
-# - "zzz-" file name so it's the last file to be processed and these values override
-#   previous ones.
-# - Reset funnel DB config so it can use a local postgres pod:
-#   https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
-# - update fence and indexd configs to generate secrets instead of looking for
-# pre-existing secrets
-
+# Keep the config files for the services we need, delete the rest
 cd gen3-gitops-ci/ci/default/values && mkdir ../to-keep
 mv arborist.yaml fence.yaml funnel.yaml gen3-workflow.yaml indexd.yaml revproxy.yaml values.yaml ../to-keep
 rm ./* && mv ../to-keep/* .
@@ -36,6 +26,8 @@ yq eval -i '.gen3-workflow.gen3WorkflowConfig.enableOptimizedNodeScheduling = fa
 # overwrite gen3-workflow config `EKS_CLUSTER_NAME` to an empty string
 yq eval -i '.global.clusterName = ""' values.yaml
 
+# update fence and indexd configs to generate secrets instead of looking for pre-existing secrets
+yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd.yaml
 cat <<EOF > temp-fence.yaml
 fence:
     externalSecrets:
@@ -131,8 +123,9 @@ EOF
 yq eval-all -i 'select(fileIndex == 0) * select(fileIndex == 1)' fence.yaml temp-fence.yaml
 rm temp-fence.yaml
 
-yq eval -i '.indexd.externalSecrets.createK8sServiceCredsSecret = "true"' indexd.yaml
-
+# Configure Funnel to use Minio, reset settings that do not work in a Kind cluster, and reset the
+# DB config so it can use a local postgres pod:
+# https://github.com/uc-cdis/ohsu-funnel-helm-charts/blob/b4095e4/charts/funnel/values.yaml#L274-L278
 yq eval -i '.funnel.postgres.dbCreate = false' funnel.yaml
 yq eval -i '.funnel.funnel.postgresql.enabled = false' funnel.yaml
 # TODO: why is this not "workflow-pods-funnel-pr-1"?
@@ -155,6 +148,12 @@ yq eval -i '.funnel.funnel.stsRegion = ""' funnel.yaml
 #       User: funnel
 #       Password: example
 
+# Disable unnecessary services. Master list:
+# https://github.com/uc-cdis/gen3-gitops/tree/160a135/ci/default/values
+# (this could also be done automatically by using `--set` for all `<service>.enabled` in
+# the `helm install` command)
+# "zzz-" file name hack so it's the last file to be processed and these values override
+# previous ones.
 cat <<EOF > zzz-disable-services.yaml
 access-backend:
   enabled: false
@@ -275,6 +274,7 @@ kubectl wait -n ${NAMESPACE} --for=condition=Ready pod/minio --timeout=120s
 kubectl wait -n external-secrets --for=condition=Ready pod --all --timeout=120s
 kubectl wait -n kube-system --for=condition=Ready pod --all --timeout=120s
 
+# upload a user.yaml file which will be used by the usersync job
 cat <<EOF > user.yaml
 authz:
   policies:
@@ -338,6 +338,7 @@ users:
   smarty-two@example.org: {}
 EOF
 
+# minio port-forward to create the bucket and upload the user.yaml file
 kubectl port-forward -n "${NAMESPACE}" service/minio 9000:9000 &
 PF_PID=$!
 trap "kill $PF_PID" EXIT  # kill port-forward when script exits
