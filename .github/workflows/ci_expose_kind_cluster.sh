@@ -6,3 +6,7 @@ kubectl port-forward -n "${NAMESPACE}" service/revproxy-service 8000:80 &
 disown $!
 # Wait until the port is actually accepting connections
 timeout 30 bash -c 'until nc -z localhost 8000; do sleep 0.5; done'
+
+echo "DEBUG: hitting $HOSTNAME_PROTOCOL://$HOSTNAME/user/_status"
+RESPONSE=$(curl -w "%{http_code}" "$HOSTNAME_PROTOCOL://$HOSTNAME/user/_status")
+echo RESPONSE: $RESPONSE
