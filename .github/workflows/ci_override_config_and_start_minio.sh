@@ -38,6 +38,8 @@ fence:
     #    usersync: false  # use the useryaml job instead of the usersync cronjob
     #    userYamlS3Path: s3://cdis-gen3-users/ci/user.yaml
         userYamlS3Endpoint: ${MINIO_SERVICE_URL}
+        userYamlS3AccessKeyId: minioadmin
+        userYamlS3SecretAccessKey: minioadmin
         syncFromDbgap: false
     FENCE_CONFIG:  # use private config because it takes precedence over public config
         BASE_URL: 'http://fence-service.${NAMESPACE}.svc.cluster.local'
