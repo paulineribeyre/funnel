@@ -21,4 +21,3 @@ jobs:
       SETUP_SCRIPT_3: .github/workflows/ci_expose_kind_cluster.sh
       # TODO remove:
       TEST_REPO_BRANCH: support-kind
-      HELM_BRANCH: usersync-s3-endpoint

@@ -430,13 +430,18 @@ jobs:
               if [[ -n $TEST_LABELS ]]; then
                 test_label_expr="${TEST_LABELS//,/ or }"
                 test_label="-k \"$test_label_expr\""
-              else
-                if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-                  test_label=$(gh api repos/$REPO_FN/pulls/$PR_NUM --jq '.labels | map(select(.name | test("^(?i)test"))) | map(.name) | if length > 0 then "-k \"" + join(" or ") + "\"" else "" end')
-                fi
+              elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+                test_label=$(gh api repos/$REPO_FN/pulls/$PR_NUM --jq '.labels | map(select(.name | test("^(?i)test"))) | map(.name) | if length > 0 then "-k \"" + join(" or ") + "\"" else "" end')
               fi
               echo $test_label
               echo "TEST_LABEL=$test_label" >> $GITHUB_ENV
+
+              skip_quay_build=$(gh pr view --repo $REPO_FN $PR_NUM --json labels --jq '.labels[].name' | grep -x "skip-quay-build")
+              if [[ -n "$skip_quay_build" ]]; then
+                echo "SKIP_QUAY_BUILD=true" >> $GITHUB_ENV
+              else
+                echo "SKIP_QUAY_BUILD=false" >> $GITHUB_ENV
+              fi
 
           - name: Run tests pertaining to specific service
             id: run_service_tests
